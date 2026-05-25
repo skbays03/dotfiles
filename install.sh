@@ -69,8 +69,24 @@ elif [ "$OS" = linux ]; then
     sudo apt update
 
     sudo apt install -y \
+        zsh \
         tmux neovim ripgrep fd-find fzf gh \
         curl unzip fontconfig build-essential git
+
+    # Make zsh the default login shell if it isn't already. Ubuntu defaults to
+    # bash, which won't read ~/.zshrc — so all our aliases (c, wip, sync) and
+    # tool inits (starship, zoxide, ...) silently never load.
+    # Use getent because $SHELL can lag /etc/passwd between login sessions.
+    USER_SHELL=$(getent passwd "$USER" | cut -d: -f7 2>/dev/null || echo "$SHELL")
+    if [ "$(basename "$USER_SHELL")" != "zsh" ]; then
+        echo ""
+        echo "==> Setting zsh as your default shell (you'll be prompted for your password)"
+        chsh -s "$(command -v zsh)" "$USER" || {
+            echo "    chsh failed — run manually:  chsh -s \$(which zsh)"
+        }
+        echo "    Log out + back in (or 'wsl --shutdown' from PowerShell, then reopen WSL)"
+        echo "    for zsh to become active."
+    fi
 
     # fd is named fdfind on Debian/Ubuntu — alias so commands match Mac
     if command -v fdfind >/dev/null 2>&1 && ! command -v fd >/dev/null 2>&1; then
