@@ -120,16 +120,19 @@ map("n", "<leader>s", function()
 end, { desc = "Insert filetype skeleton" })
 
 -- tmux_term — one shell pane below nvim that follows the current file.
--- Module lives in lua/tmux_term.lua. Four bindings:
---   <leader>tt  open/focus pane, cd'd to current file's git PROJECT ROOT
---               (or file's dir if not in a repo)
+-- Module lives in lua/tmux_term.lua. Five bindings:
+--   <leader>tt  open/focus pane, cd'd to current file's PARENT DIR
+--               (most direct context — "I want to run something against this file")
+--   <leader>tT  open/focus pane, cd'd to current file's git PROJECT ROOT
+--               (broader context — "make / project-wide commands")
 --   <leader>tk  grow the pane to 25 rows (default open height is 10)
 --   <leader>tr  in Visual mode: send the selected text to the pane and run it
 --   <leader>td  destroy (close) the term pane
 local tt = require("tmux_term")
-map("n", "<leader>tt", tt.open,    { desc = "tmux term: open/focus (cd to project root)" })
+map("n", "<leader>tt", tt.open,         { desc = "tmux term: open (cd to file's parent dir)" })
+map("n", "<leader>tT", tt.open_at_root, { desc = "tmux term: open (cd to project root)" })
 map("n", "<leader>tk", function() tt.resize(25) end, { desc = "tmux term: grow to 25 rows" })
-map("n", "<leader>td", tt.destroy, { desc = "tmux term: destroy (close pane)" })
+map("n", "<leader>td", tt.destroy,      { desc = "tmux term: destroy (close pane)" })
 map("v", "<leader>tr", function()
     -- Compute the visual selection's line range. Using line("v") + line(".")
     -- avoids polluting any register (vs the more common `normal! y` approach).

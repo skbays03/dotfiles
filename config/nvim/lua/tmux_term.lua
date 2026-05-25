@@ -8,14 +8,18 @@
 --
 -- Public API:
 --   M.open()         Open or focus the term pane, cd'd to the current file's
---                    git project root (or file's dir if not in a repo).
+--                    PARENT directory (most direct context for the file).
+--   M.open_at_root() Same but cd'd to the file's git project root (or cwd if
+--                    not in a repo). Use when you need project-wide context
+--                    (running `make` from anywhere, etc.).
 --   M.resize(lines)  Resize the term pane to `lines` rows.
 --   M.run(text)      Send `text` followed by Enter to the term pane.
 --                    Newlines inside `text` run as separate commands.
 --   M.destroy()      Kill the term pane.
 --
 -- Suggested keymaps (set in init.lua):
---   <leader>tt  →  open()
+--   <leader>tt  →  open()           file's parent dir
+--   <leader>tT  →  open_at_root()   project root
 --   <leader>tk  →  resize(25)
 --   <leader>tr  →  run(<visual selection>)
 --   <leader>td  →  destroy()
@@ -62,14 +66,21 @@ local function project_root(path)
     return file_dir
 end
 
--- Open or focus the term pane, cd'd to the current file's project root.
-function M.open()
+-- Returns the current buffer's file directory, or nvim's cwd if there's no
+-- backing file (terminal buffer, dashboard, etc.).
+local function file_parent_dir()
+    local bufname = vim.api.nvim_buf_get_name(0)
+    if bufname == nil or bufname == "" then
+        return vim.fn.getcwd()
+    end
+    return vim.fn.fnamemodify(bufname, ":p:h")
+end
+
+-- Shared helper: open or focus the pane, cd'd to `dir`.
+local function open_at(dir)
     if not ensure_tmux() then return end
 
-    local bufname = vim.api.nvim_buf_get_name(0)
-    local dir = project_root(bufname)
     local pane = find_pane()
-
     if pane then
         -- Existing pane: cd it (leading space keeps it out of shell history
         -- when HIST_IGNORE_SPACE is set) and focus it.
@@ -81,6 +92,19 @@ function M.open()
         vim.fn.system({ "tmux", "split-window", "-v", "-l", "10", "-c", dir })
         vim.fn.system({ "tmux", "set-option", "-p", "@term", "1" })
     end
+end
+
+-- Open/focus the term pane, cd'd to the current file's PARENT directory.
+-- This is the "I want to run something against THIS file" default.
+function M.open()
+    open_at(file_parent_dir())
+end
+
+-- Open/focus the term pane, cd'd to the file's git project root (or cwd if
+-- not in a repo). Use when you want project-wide context — e.g., `make` from
+-- anywhere, `./src/tests/run.sh` from anywhere in the tree.
+function M.open_at_root()
+    open_at(project_root(vim.api.nvim_buf_get_name(0)))
 end
 
 -- Resize the term pane to a specific number of rows.
