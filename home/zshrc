@@ -38,3 +38,23 @@ alias sync='$HOME/dotfiles/launchers/sync_repos.sh'
 crun () { clang -Wall "$1" -o /tmp/crun_out && /tmp/crun_out; }
 # cpprun lives in ~/bin/cpprun so it works in non-interactive shells (vim :!, etc.).
 # PATH addition for ~/bin lives in ~/.zshenv.
+
+# ── Git workflow helpers (for the two-machine dotfiles + learning flow) ──────
+# c "message" — commit all changes + push in one keystroke.
+#   Compresses 'git add -A && git commit -m "..." && git push'.
+#   Run from anywhere inside a git repo. Errors out if no message provided.
+c() {
+    if [ -z "$1" ]; then
+        echo "usage: c \"commit message\""
+        return 1
+    fi
+    git add -A && git commit -m "$*" && git push
+}
+
+# wip — emergency snapshot when leaving a machine mid-task.
+#   Stages all changes, commits with a timestamp message, pushes.
+#   WIP commits are intentionally messy — clean them up later by running
+#   `git rebase -i HEAD~N` and squashing them into proper commits.
+wip() {
+    git add -A && git commit -m "wip: $(date '+%Y-%m-%d %H:%M')" && git push
+}
