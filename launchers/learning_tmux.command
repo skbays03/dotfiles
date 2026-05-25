@@ -29,6 +29,13 @@ export PATH="/opt/homebrew/bin:/usr/local/bin:$HOME/bin:$HOME/.local/bin:$PATH"
 
 LEARN_DIR="$HOME/Desktop/learning"
 
+# Auto-sync repos from GitHub before starting the session. Picks up any changes
+# pushed from the other machine; safe to skip if uncommitted changes exist.
+if [ -x "$HOME/dotfiles/launchers/sync_repos.sh" ]; then
+    "$HOME/dotfiles/launchers/sync_repos.sh"
+    echo ""
+fi
+
 if ! command -v tmux >/dev/null 2>&1; then
     echo "tmux not installed. Install with: brew install tmux"
     read -n 1 -s -r -p "Press any key to close..."
