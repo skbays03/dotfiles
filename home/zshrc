@@ -22,6 +22,11 @@ alias cls="clear"
 alias p="python3"
 alias z="source ~/.zshrc"
 
+# Sync dotfiles + learning repos from GitHub (calls ~/dotfiles/launchers/sync_repos.sh).
+# Auto-runs from the learning_tmux launcher too; this alias lets you trigger it manually.
+# NOTE: shadows the rarely-used Unix sync(8) command (which flushes filesystem buffers).
+alias sync='$HOME/dotfiles/launchers/sync_repos.sh'
+
 # ── Per-machine secrets (NEVER committed to dotfiles) ─────────────────
 # Twilio credentials (used by Python phone-call alarm project) live in
 # ~/.zshrc.local on machines where the project is set up. Restore from
