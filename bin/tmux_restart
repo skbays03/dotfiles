@@ -1,0 +1,30 @@
+#!/bin/sh
+# =============================================================================
+# tmux_restart — kill any running tmux server, then relaunch the learning session
+# =============================================================================
+# Use when you've changed `default-terminal` (or any other server-level tmux
+# setting) and need a fresh server to pick it up — `tmux source-file` reloads
+# the config but server-level settings are baked at server start.
+#
+# Refuses to run from inside tmux (that would kill the very shell running this
+# script). Detach first (Ctrl-a d), then run this from a Ghostty/Terminal shell.
+#
+# Usage:  tmux_restart
+# =============================================================================
+
+if [ -n "${TMUX:-}" ]; then
+    echo "tmux_restart: can't run from inside tmux (would kill this shell)."
+    echo "  1. Detach:   press Ctrl-a then d"
+    echo "  2. Then run: tmux_restart"
+    exit 1
+fi
+
+echo "==> Killing tmux server (if running)"
+tmux kill-server 2>/dev/null && echo "    server killed" || echo "    no server was running"
+
+echo "==> Launching fresh session via the learning launcher"
+case "$(uname -s)" in
+    Darwin)  exec "$HOME/Desktop/learning_tmux.command" ;;
+    Linux)   exec "$HOME/Desktop/learning_tmux.sh" ;;
+    *)       echo "tmux_restart: unsupported OS $(uname -s)"; exit 1 ;;
+esac
