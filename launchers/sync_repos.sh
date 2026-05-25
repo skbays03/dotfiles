@@ -23,8 +23,17 @@ sync_repo() {
         echo "  [$name] uncommitted changes — skipping (commit + push to sync)"
         return 0
     fi
+    # Capture HEAD before pull so we can detect what actually changed.
+    before=$(cd "$repo" && git rev-parse HEAD 2>/dev/null)
     if (cd "$repo" && git pull -q 2>/dev/null); then
-        echo "  [$name] up to date"
+        after=$(cd "$repo" && git rev-parse HEAD 2>/dev/null)
+        if [ "$before" = "$after" ]; then
+            echo "  [$name] already up to date"
+        else
+            count=$(cd "$repo" && git rev-list --count "$before"..HEAD 2>/dev/null)
+            latest=$(cd "$repo" && git log -1 --oneline 2>/dev/null)
+            echo "  [$name] pulled $count new commit(s) — latest: $latest"
+        fi
     else
         echo "  [$name] pull failed (check network / auth)"
     fi
