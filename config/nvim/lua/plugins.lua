@@ -379,6 +379,35 @@ return {
     },
 
     -- =========================================================================
+    -- lazygit.nvim — wrap the lazygit TUI in a floating nvim window
+    -- =========================================================================
+    -- <leader>lg opens lazygit over the current nvim window. Inside lazygit:
+    --   space     stage / unstage the hunk/file under cursor
+    --   c         commit (opens a commit-message buffer; close it to finish)
+    --   P         push
+    --   p         pull
+    --   <Enter>   view diff / drill in
+    --   q         close lazygit + return to nvim
+    --   ?         full help (every keybind lazygit supports)
+    --
+    -- The c "msg" shell alias is still great for "one-line commit, ship it."
+    -- lazygit is for cases where you want to SEE the diff, stage individual
+    -- hunks, or do anything more involved than a quick commit.
+    --
+    -- The nvim plugin is tiny; it just embeds the lazygit binary (which is
+    -- the actual engine — installed via brew on Mac / apt on Linux).
+    {
+        "kdheepak/lazygit.nvim",
+        cmd = { "LazyGit", "LazyGitConfig", "LazyGitCurrentFile",
+                "LazyGitFilter", "LazyGitFilterCurrentFile" },
+        dependencies = { "nvim-lua/plenary.nvim" },
+        keys = {
+            { "<leader>lg", "<cmd>LazyGit<cr>",            desc = "LazyGit (project root)" },
+            { "<leader>lf", "<cmd>LazyGitCurrentFile<cr>", desc = "LazyGit (current file's repo)" },
+        },
+    },
+
+    -- =========================================================================
     -- vim-be-good (kept from your prior config) — vim-motion practice game
     -- =========================================================================
     -- Lazy-loaded; only attaches when you run :VimBeGood.
