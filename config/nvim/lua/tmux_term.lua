@@ -12,11 +12,13 @@
 --   M.resize(lines)  Resize the term pane to `lines` rows.
 --   M.run(text)      Send `text` followed by Enter to the term pane.
 --                    Newlines inside `text` run as separate commands.
+--   M.destroy()      Kill the term pane.
 --
 -- Suggested keymaps (set in init.lua):
 --   <leader>tt  →  open()
 --   <leader>tk  →  resize(25)
 --   <leader>tr  →  run(<visual selection>)
+--   <leader>td  →  destroy()
 -- =============================================================================
 
 local M = {}
@@ -104,6 +106,17 @@ function M.run(text)
         return
     end
     vim.fn.system({ "tmux", "send-keys", "-t", pane, text, "Enter" })
+end
+
+-- Kill the term pane. No-op if no pane is currently marked.
+function M.destroy()
+    if not ensure_tmux() then return end
+    local pane = find_pane()
+    if not pane then
+        vim.notify("No tmux term pane to close", vim.log.levels.INFO)
+        return
+    end
+    vim.fn.system({ "tmux", "kill-pane", "-t", pane })
 end
 
 return M
