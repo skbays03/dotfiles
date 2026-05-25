@@ -1,0 +1,10 @@
+# Per-machine secrets (sourced by .zshrc but NEVER committed)
+*.local
+
+# OS / editor noise
+.DS_Store
+*.swp
+*~
+
+# Backups created by install.sh
+*.dotfiles-backup

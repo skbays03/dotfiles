@@ -1,0 +1,35 @@
+export PATH="$HOME/.local/bin:$PATH"
+
+# ── pyenv ─────────────────────────────────────────────
+export PYENV_ROOT="$HOME/.pyenv"
+[[ -d $PYENV_ROOT/bin ]] && export PATH="$PYENV_ROOT/bin:$PATH"
+command -v pyenv >/dev/null && eval "$(pyenv init - zsh)"
+
+# ── Dev tooling (only init if installed; portable across machines) ────
+[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
+command -v zoxide   >/dev/null && eval "$(zoxide init zsh)"
+command -v direnv   >/dev/null && eval "$(direnv hook zsh)"
+command -v starship >/dev/null && eval "$(starship init zsh)"
+
+# ── Aliases (only alias if the target tool is present) ────────────────
+command -v bat >/dev/null && alias cat=bat
+if command -v eza >/dev/null; then
+    alias ls=eza
+    alias ll="eza -la --git --group-directories-first"
+    alias tree="eza --tree --git-ignore"
+fi
+alias cls="clear"
+alias p="python3"
+alias z="source ~/.zshrc"
+
+# ── Per-machine secrets (NEVER committed to dotfiles) ─────────────────
+# Twilio credentials (used by Python phone-call alarm project) live in
+# ~/.zshrc.local on machines where the project is set up. Restore from
+# 1Password and write to ~/.zshrc.local if needed.
+[ -f ~/.zshrc.local ] && source ~/.zshrc.local
+
+# ── Functions ─────────────────────────────────────────────────────────
+# crun: build + run a single C file. Output to /tmp so we don't litter.
+crun () { clang -Wall "$1" -o /tmp/crun_out && /tmp/crun_out; }
+# cpprun lives in ~/bin/cpprun so it works in non-interactive shells (vim :!, etc.).
+# PATH addition for ~/bin lives in ~/.zshenv.

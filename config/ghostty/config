@@ -1,0 +1,61 @@
+# =============================================================================
+# Ghostty config — shawn
+# =============================================================================
+# Docs:    https://ghostty.org/docs/config
+# Reload:  Cmd+Shift+,  (or close + reopen Ghostty)
+# Themes:  run `ghostty +list-themes` to browse built-ins
+# =============================================================================
+
+
+
+# ---- Font --------------------------------------------------------------------
+# Match nvim's font so Nerd Font glyphs (neo-tree, which-key, lualine) render
+# consistently across the terminal and the editor.
+font-family = JetBrainsMono Nerd Font
+font-size = 14
+
+
+
+# ---- Theme -------------------------------------------------------------------
+# Match nvim's colorscheme. If `tokyonight-night` isn't recognized, run
+# `ghostty +list-themes` and pick the closest variant.
+theme = "TokyoNight Night"
+
+
+
+# ---- Background wallpaper ----------------------------------------------------
+# Subtle/faded look. background-image-opacity 0.0 = invisible, 1.0 = full.
+# 0.15-0.20 is the sweet spot for "visible but readable."
+background-image = /Users/shawn/Pictures/wallpapers/tokyo_neon.jpg
+background-image-opacity = 0.15
+background-image-position = center
+background-image-fit = cover
+
+# Keep the terminal background itself fully opaque — the wallpaper IS the
+# visual element; we don't want the macOS desktop bleeding through on top.
+background-opacity = 1.0
+
+
+
+# ---- Window appearance -------------------------------------------------------
+window-padding-x = 10
+window-padding-y = 10
+window-decoration = true
+window-save-state = always       # restore size/position when reopening
+
+
+
+# ---- Cursor ------------------------------------------------------------------
+cursor-style = block
+cursor-style-blink = false
+
+
+
+# ---- Mouse -------------------------------------------------------------------
+mouse-hide-while-typing = true
+
+
+
+# ---- macOS-specific ----------------------------------------------------------
+# Let Option+key send Alt (some nvim/tmux bindings expect this).
+macos-option-as-alt = true
