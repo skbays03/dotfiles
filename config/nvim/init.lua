@@ -142,7 +142,50 @@ end, { desc = "tmux term: run visual selection" })
 
 
 -- =============================================================================
--- 4. lazy.nvim bootstrap + plugin load
+-- 4. Autocmds + diagnostic display
+-- =============================================================================
+
+-- Filetype-specific indent fix for C / C++.
+-- Vim's cindent treats anything ending in `:` as a goto label and outdents it
+-- to column 0. That's wrong for C++ scope-resolution (`std::`) — while typing
+-- `std:` you see the line jump to col 0, then snap back when you type the
+-- second `:`. The L0 cinoption disables that outdent so labels stay at the
+-- current indent and `std::` doesn't jump.
+vim.api.nvim_create_autocmd("FileType", {
+    pattern = { "c", "cpp", "h", "hpp" },
+    callback = function()
+        vim.opt_local.cinoptions:append("L0")
+    end,
+})
+
+-- Diagnostic display — VS Code-style inline errors/warnings.
+-- The pieces:
+--   virtual_text  — the "● message" rendered AFTER each problematic line
+--   signs         — gutter icons (Error / Warn / Info / Hint)
+--   underline     — squiggle under the offending tokens
+--   float         — popup on <leader>e (or hover); rounded border looks nicer
+-- update_in_insert = false keeps it quiet while you type; updates after stop.
+-- severity_sort orders errors above warnings above info, matching VS Code.
+vim.diagnostic.config({
+    virtual_text = {
+        prefix = "●",
+        spacing = 4,
+        source = "if_many",     -- show LSP name only when multiple LSPs are reporting
+    },
+    signs = true,
+    underline = true,
+    update_in_insert = false,
+    severity_sort = true,
+    float = {
+        border = "rounded",
+        source = "if_many",
+    },
+})
+
+
+
+-- =============================================================================
+-- 5. lazy.nvim bootstrap + plugin load
 -- =============================================================================
 -- Clones lazy.nvim on first run if it's not already installed. Then prepends
 -- it to the runtimepath so `require("lazy")` resolves. Same shape as before;
