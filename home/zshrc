@@ -33,11 +33,11 @@ alias sync='$HOME/dotfiles/launchers/sync_repos.sh'
 # 1Password and write to ~/.zshrc.local if needed.
 [ -f ~/.zshrc.local ] && source ~/.zshrc.local
 
-# ── Functions ─────────────────────────────────────────────────────────
-# crun: build + run a single C file. Output to /tmp so we don't litter.
-crun () { clang -Wall "$1" -o /tmp/crun_out && /tmp/crun_out; }
-# cpprun lives in ~/bin/cpprun so it works in non-interactive shells (vim :!, etc.).
-# PATH addition for ~/bin lives in ~/.zshenv.
+# ── Build helpers ─────────────────────────────────────────────────────
+# crun and cpprun live in ~/dotfiles/bin/ and are symlinked into ~/bin/ by
+# install.sh. Standalone scripts (not zsh functions) so they work in
+# non-interactive shells too — vim's :!cpprun %, scripts, ssh, etc.
+# PATH addition for ~/bin lives in ~/.zshenv (also synced via dotfiles).
 
 # ── Git workflow helpers (for the two-machine dotfiles + learning flow) ──────
 # c "message" — commit all changes + push in one keystroke.

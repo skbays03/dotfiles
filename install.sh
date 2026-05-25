@@ -148,11 +148,20 @@ echo ""
 echo "==> Creating symlinks"
 
 link "$DOTFILES/home/zshrc"     "$HOME/.zshrc"
+link "$DOTFILES/home/zshenv"    "$HOME/.zshenv"
 link "$DOTFILES/home/gitconfig" "$HOME/.gitconfig"
 link "$DOTFILES/home/tmux.conf" "$HOME/.tmux.conf"
 
 # Symlink the entire nvim config directory (so future additions sync automatically)
 link "$DOTFILES/config/nvim" "$HOME/.config/nvim"
+
+# Personal scripts (cpprun, crun, ...) — symlink each into ~/bin/ so they're
+# on PATH for both interactive and non-interactive shells (vim :!cpprun %, etc.).
+mkdir -p "$HOME/bin"
+for src in "$DOTFILES/bin"/*; do
+    [ -f "$src" ] || continue
+    link "$src" "$HOME/bin/$(basename "$src")"
+done
 
 # Ghostty: cross-platform symlink (common config) + per-OS os.conf symlink.
 # The common config includes `config-file = os.conf`, which resolves to whichever

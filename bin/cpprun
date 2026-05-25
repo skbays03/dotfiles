@@ -1,0 +1,91 @@
+#!/bin/zsh
+# =============================================================================
+# cpprun — quick build-and-run for single-file C++ programs
+# =============================================================================
+# A standalone script (not a zsh function) so it works in non-interactive
+# shells too — vim's :!cpprun %, scripts, ssh sessions, etc.
+#
+# Usage:
+#   cpprun <file.cpp>                      build to /tmp/cpprun_out, run it
+#   cpprun <file.cpp> --no-run             build only, don't run
+#   cpprun <file.cpp> --out <dir>          choose the build dir
+#   cpprun <file.cpp> --name <name>        choose the output binary name
+#   cpprun <file.cpp> --copy               also copy stdout+stderr to clipboard
+#   cpprun <file.cpp> -- arg1 arg2         pass everything after `--` to the program
+#
+# Examples:
+#   cpprun src/sift.cpp --out . --name sift              build to ./sift
+#   cpprun foo.cpp -- pattern file.txt                   build + run with args
+#   cpprun bar.cpp --no-run                              just check it compiles
+#   cpprun foo.cpp --copy                                run + copy all output to clipboard
+# =============================================================================
+
+file=""
+out_dir="/tmp"
+out_name="cpprun_out"
+run=1
+copy=0
+typeset -a passthrough_args
+passthrough_args=()
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --no-run) run=0; shift ;;
+        --copy)   copy=1; shift ;;
+        --out)    out_dir="$2"; shift 2 ;;
+        --name)   out_name="$2"; shift 2 ;;
+        --)       shift; passthrough_args=("$@"); break ;;
+        --*)      echo "cpprun: unknown flag: $1" >&2; exit 1 ;;
+        *)        file="$1"; shift ;;
+    esac
+done
+
+if [ -z "$file" ]; then
+    echo "usage: cpprun <file.cpp> [--no-run] [--out <dir>] [--name <name>] [--copy] [-- args...]" >&2
+    exit 1
+fi
+
+out_path="${out_dir}/${out_name}"
+
+# Cross-platform clipboard. Prefer pbcopy (macOS), then wl-copy (Wayland),
+# then xclip / xsel (X11). Silently degrades — prints a one-line warning if
+# nothing's available, so --copy doesn't crash the build.
+clip_copy() {
+    if   command -v pbcopy  >/dev/null 2>&1; then pbcopy
+    elif command -v wl-copy >/dev/null 2>&1; then wl-copy
+    elif command -v xclip   >/dev/null 2>&1; then xclip -selection clipboard
+    elif command -v xsel    >/dev/null 2>&1; then xsel --clipboard --input
+    else
+        cat > /dev/null
+        echo "cpprun: no clipboard tool found (pbcopy/wl-copy/xclip/xsel); --copy was a no-op" >&2
+        return 1
+    fi
+}
+
+# The actual work — used in both copy and no-copy paths.
+# Defined as a function so we can pipe its combined output through tee when --copy.
+_cpprun_work() {
+    clang++ -std=c++17 -Wall "$file" -o "$out_path" || return 1
+    if [ "$run" -eq 1 ]; then
+        "$out_path" "${passthrough_args[@]}"
+    fi
+}
+
+if [ "$copy" -eq 1 ]; then
+    # tee → both display on screen AND capture to a tmpfile we copy from.
+    # 2>&1 folds stderr into stdout so the clipboard gets EVERYTHING (compile errors,
+    # program output, runtime errors).
+    tmpfile=$(mktemp -t cpprun_out.XXXXXX)
+    _cpprun_work 2>&1 | tee "$tmpfile"
+    # ${pipestatus[1]} (zsh, 1-indexed) = exit status of _cpprun_work, not of tee.
+    # Without this we'd report tee's exit status, which is almost always 0.
+    # GOTCHA: can't name this variable `status` — that's a read-only zsh built-in
+    # (synonym for $?); assignment fails with "read-only variable: status".
+    rc=${pipestatus[1]}
+    clip_copy < "$tmpfile"
+    rm -f "$tmpfile"
+    echo "(output copied to clipboard)" >&2
+    exit $rc
+else
+    _cpprun_work
+fi

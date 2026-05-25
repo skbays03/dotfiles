@@ -1,0 +1,10 @@
+# .zshenv — sourced for ALL zsh shells (interactive AND non-interactive).
+# Use this for PATH and env vars that should be available everywhere
+# (including vim's :!command, ssh, scripts, etc.).
+#
+# Contrast with .zshrc, which is only sourced for INTERACTIVE shells —
+# anything defined there is invisible to commands launched from vim, scripts, etc.
+
+# Make ~/bin available so personal scripts (cpprun, crun, ...) work from any shell.
+# (Scripts live in ~/dotfiles/bin/ and are symlinked into ~/bin/ by install.sh.)
+export PATH="$HOME/bin:$PATH"

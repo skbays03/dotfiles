@@ -1,0 +1,26 @@
+#!/bin/sh
+# =============================================================================
+# crun — quick build-and-run for single-file C programs
+# =============================================================================
+# Compile `foo.c` with -Wall, write the binary to /tmp/crun_out, run it.
+# Anything after the filename is forwarded to the program as argv.
+#
+# Usage:
+#   crun foo.c                    build + run
+#   crun foo.c arg1 arg2          build + run with args
+#
+# Sister tool: cpprun for C++. Same idea, more flags.
+# =============================================================================
+
+set -eu
+
+if [ -z "${1:-}" ]; then
+    echo "usage: crun <file.c> [args...]" >&2
+    exit 1
+fi
+
+file="$1"
+shift
+
+clang -Wall "$file" -o /tmp/crun_out
+/tmp/crun_out "$@"
