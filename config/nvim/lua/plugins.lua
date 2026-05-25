@@ -46,6 +46,10 @@ return {
             -- Use a muted-but-readable blue-grey + italic to flag "meta info".
             vim.api.nvim_set_hl(0, "NeoTreeMessage", { fg = "#9aa5ce", italic = true })
             vim.api.nvim_set_hl(0, "NeoTreeDimText", { fg = "#9aa5ce", italic = true })
+
+            -- Brighten Comment from tokyonight-night's default (#565f89, hard to
+            -- read on a dark wallpaper) to the same muted blue as the meta text.
+            vim.api.nvim_set_hl(0, "Comment", { fg = "#9aa5ce", italic = true })
         end,
     },
 
