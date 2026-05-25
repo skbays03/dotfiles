@@ -99,6 +99,27 @@ elif [ "$OS" = linux ]; then
         curl -sS https://starship.rs/install.sh | sh -s -- -y
     fi
 
+    # lazygit — not in apt; download the latest release from GitHub.
+    # Arch-aware: x86_64 for typical WSL/Intel Linux, arm64 for ARM Linux.
+    if ! command -v lazygit >/dev/null 2>&1; then
+        case "$(uname -m)" in
+            x86_64)  LG_ARCH=x86_64 ;;
+            aarch64) LG_ARCH=arm64 ;;
+            *)       LG_ARCH="" ;;
+        esac
+        if [ -n "$LG_ARCH" ]; then
+            LAZYGIT_VERSION=$(curl -s "https://api.github.com/repos/jesseduffield/lazygit/releases/latest" \
+                | grep -Po '"tag_name": "v\K[^"]*')
+            curl -Lo /tmp/lazygit.tar.gz \
+                "https://github.com/jesseduffield/lazygit/releases/latest/download/lazygit_${LAZYGIT_VERSION}_Linux_${LG_ARCH}.tar.gz"
+            tar xf /tmp/lazygit.tar.gz -C /tmp lazygit
+            sudo install /tmp/lazygit /usr/local/bin
+            rm /tmp/lazygit /tmp/lazygit.tar.gz
+        else
+            echo "    lazygit: unsupported arch $(uname -m); install manually"
+        fi
+    fi
+
     # JetBrainsMono Nerd Font
     FONT_DIR="$HOME/.local/share/fonts"
     if ! ls "$FONT_DIR" 2>/dev/null | grep -qi "JetBrainsMono.*Nerd"; then
