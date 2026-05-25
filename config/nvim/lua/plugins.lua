@@ -62,6 +62,67 @@ return {
     },
 
     -- =========================================================================
+    -- alpha-nvim — start screen / dashboard shown when nvim opens with no file
+    -- =========================================================================
+    -- Replaces the empty buffer at startup with an ASCII header + menu of
+    -- common actions. Press the letter shown on each button to fire its action.
+    -- Disappears once you open any buffer; never gets in your way after that.
+    --
+    -- Customize the header (any 6-line ASCII), buttons (any nvim command), and
+    -- footer (string or function). Reload with :Lazy reload alpha-nvim.
+    {
+        "goolord/alpha-nvim",
+        event = "VimEnter",
+        dependencies = { "nvim-tree/nvim-web-devicons" },
+        config = function()
+            local alpha     = require("alpha")
+            local dashboard = require("alpha.themes.dashboard")
+
+            -- ---- Header ---------------------------------------------------------
+            -- "shawn" in ANSI Shadow font. Swap in any 6-line ASCII art.
+            -- Generators: https://patorjk.com/software/taag/ (ANSI Shadow style).
+            dashboard.section.header.val = {
+                [[ ███████╗██╗  ██╗ █████╗ ██╗    ██╗███╗   ██╗ ]],
+                [[ ██╔════╝██║  ██║██╔══██╗██║    ██║████╗  ██║ ]],
+                [[ ███████╗███████║███████║██║ █╗ ██║██╔██╗ ██║ ]],
+                [[ ╚════██║██╔══██║██╔══██║██║███╗██║██║╚██╗██║ ]],
+                [[ ███████║██║  ██║██║  ██║╚███╔███╔╝██║ ╚████║ ]],
+                [[ ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚══╝╚══╝ ╚═╝  ╚═══╝ ]],
+            }
+            dashboard.section.header.opts.hl = "Type"  -- inherit theme accent color
+
+            -- ---- Buttons --------------------------------------------------------
+            -- First arg = shortcut key (press the letter to fire). The icon
+            -- glyphs come from your Nerd Font; pick others from nerdfonts.com.
+            dashboard.section.buttons.val = {
+                dashboard.button("f", "  Find file",        ":Telescope find_files<CR>"),
+                dashboard.button("r", "  Recent files",     ":Telescope oldfiles<CR>"),
+                dashboard.button("g", "  Live grep",        ":Telescope live_grep<CR>"),
+                dashboard.button("e", "  File explorer",   ":Neotree<CR>"),
+                dashboard.button("n", "  New file",         ":enew<CR>"),
+                dashboard.button("c", "  Edit config",     ":e ~/.config/nvim/init.lua<CR>"),
+                dashboard.button("l", "󰒲  Plugins (Lazy)",   ":Lazy<CR>"),
+                dashboard.button("?", "  Browse keymaps",  ":Telescope keymaps<CR>"),
+                dashboard.button("q", "  Quit",             ":qa<CR>"),
+            }
+
+            -- ---- Footer ---------------------------------------------------------
+            -- Shows plugin count + startup time once lazy.nvim has stats.
+            local function footer()
+                local ok, lazy = pcall(require, "lazy")
+                if not ok then return "" end
+                local stats = lazy.stats()
+                local ms = math.floor(stats.startuptime + 0.5)
+                return string.format("  %d plugins loaded in %d ms", stats.loaded, ms)
+            end
+            dashboard.section.footer.val = footer()
+            dashboard.section.footer.opts.hl = "Comment"
+
+            alpha.setup(dashboard.opts)
+        end,
+    },
+
+    -- =========================================================================
     -- lualine — status line at the bottom of the window
     -- =========================================================================
     -- Replaces the boring default with a colored bar showing mode, file,
