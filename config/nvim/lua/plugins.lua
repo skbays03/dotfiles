@@ -103,6 +103,8 @@ return {
             { "<leader>fb", "<cmd>Telescope buffers<CR>",    desc = "Open buffers" },
             { "<leader>fh", "<cmd>Telescope help_tags<CR>",  desc = "Help tags" },
             { "<leader>fr", "<cmd>Telescope oldfiles<CR>",   desc = "Recent files" },
+            { "<leader>fk", "<cmd>Telescope keymaps<CR>",    desc = "Browse all keymaps" },
+            { "<leader>?",  "<cmd>Telescope keymaps<CR>",    desc = "Browse all keymaps (alias)" },
         },
     },
 
