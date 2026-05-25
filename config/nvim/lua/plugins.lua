@@ -144,6 +144,7 @@ return {
     {
         "nvim-telescope/telescope.nvim",
         branch = "0.1.x",
+        cmd = "Telescope",        -- :Telescope ... triggers lazy-load (needed by alpha dashboard buttons)
         dependencies = { "nvim-lua/plenary.nvim" },  -- required utility lib
         opts = {
             defaults = {
@@ -184,6 +185,7 @@ return {
     {
         "nvim-neo-tree/neo-tree.nvim",
         branch = "v3.x",
+        cmd = "Neotree",          -- :Neotree ... triggers lazy-load (needed by alpha dashboard buttons)
         dependencies = {
             "nvim-lua/plenary.nvim",          -- shared util lib (already a dep of telescope)
             "nvim-tree/nvim-web-devicons",    -- file-type icons (needs your Nerd Font)
