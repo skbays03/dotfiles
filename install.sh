@@ -71,7 +71,8 @@ elif [ "$OS" = linux ]; then
     sudo apt install -y \
         zsh \
         tmux neovim ripgrep fd-find fzf gh \
-        curl unzip fontconfig build-essential git
+        curl unzip fontconfig build-essential git \
+        wl-clipboard           # nvim clipboard provider on WSLg (Wayland)
 
     # Make zsh the default login shell if it isn't already. Ubuntu defaults to
     # bash, which won't read ~/.zshrc — so all our aliases (c, wip, sync) and
