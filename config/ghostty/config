@@ -1,9 +1,12 @@
 # =============================================================================
-# Ghostty config — shawn
+# Ghostty config — shawn (cross-platform)
 # =============================================================================
 # Docs:    https://ghostty.org/docs/config
 # Reload:  Cmd+Shift+,  (or close + reopen Ghostty)
 # Themes:  run `ghostty +list-themes` to browse built-ins
+#
+# This file holds CROSS-PLATFORM settings. OS-specific options live in os.conf
+# (which install.sh symlinks to os-macos.conf or os-linux.conf per machine).
 # =============================================================================
 
 
@@ -17,7 +20,7 @@ font-size = 14
 
 
 # ---- Theme -------------------------------------------------------------------
-# Match nvim's colorscheme. If `tokyonight-night` isn't recognized, run
+# Match nvim's colorscheme. If `TokyoNight Night` isn't recognized, run
 # `ghostty +list-themes` and pick the closest variant.
 theme = "TokyoNight Night"
 
@@ -25,14 +28,15 @@ theme = "TokyoNight Night"
 
 # ---- Background wallpaper ----------------------------------------------------
 # Subtle/faded look. background-image-opacity 0.0 = invisible, 1.0 = full.
-# 0.15-0.20 is the sweet spot for "visible but readable."
-background-image = /Users/shawn/Pictures/wallpapers/tokyo_neon.jpg
+# 0.15 = subtle (code reads cleanly over it).
+# Path uses ~ so it works on both /Users/<u>/ (macOS) and /home/<u>/ (Linux).
+background-image = ~/Pictures/wallpapers/tokyo_neon.jpg
 background-image-opacity = 0.15
 background-image-position = center
 background-image-fit = cover
 
-# Keep the terminal background itself fully opaque — the wallpaper IS the
-# visual element; we don't want the macOS desktop bleeding through on top.
+# Keep terminal background fully opaque — wallpaper IS the visual; we don't
+# want macOS desktop / Windows desktop bleeding through on top of that.
 background-opacity = 1.0
 
 
@@ -56,6 +60,7 @@ mouse-hide-while-typing = true
 
 
 
-# ---- macOS-specific ----------------------------------------------------------
-# Let Option+key send Alt (some nvim/tmux bindings expect this).
-macos-option-as-alt = true
+# ---- OS-specific overrides (symlinked per machine by install.sh) -------------
+# os.conf -> os-macos.conf  on macOS    (adds macos-option-as-alt)
+# os.conf -> os-linux.conf  on Linux    (currently empty placeholder)
+config-file = os.conf

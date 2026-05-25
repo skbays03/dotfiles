@@ -109,14 +109,15 @@ link "$DOTFILES/home/tmux.conf" "$HOME/.tmux.conf"
 # Symlink the entire nvim config directory (so future additions sync automatically)
 link "$DOTFILES/config/nvim" "$HOME/.config/nvim"
 
-# Ghostty: on Linux we can't symlink (config diverges — strip macOS keys), so copy
+# Ghostty: cross-platform symlink (common config) + per-OS os.conf symlink.
+# The common config includes `config-file = os.conf`, which resolves to whichever
+# OS-specific file we link below. Wallpaper path uses ~ so it expands per machine.
 mkdir -p "$HOME/.config/ghostty"
+link "$DOTFILES/config/ghostty/config" "$HOME/.config/ghostty/config"
 if [ "$OS" = macos ]; then
-    link "$DOTFILES/config/ghostty/config" "$HOME/.config/ghostty/config"
+    link "$DOTFILES/config/ghostty/os-macos.conf" "$HOME/.config/ghostty/os.conf"
 else
-    # Filter out macOS-only keys (Ghostty errors on unknown keys)
-    grep -v -E '^macos-' "$DOTFILES/config/ghostty/config" > "$HOME/.config/ghostty/config"
-    echo "    copied $HOME/.config/ghostty/config (filtered, no macOS-only keys)"
+    link "$DOTFILES/config/ghostty/os-linux.conf" "$HOME/.config/ghostty/os.conf"
 fi
 
 # Wallpaper
