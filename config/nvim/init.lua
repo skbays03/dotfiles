@@ -119,48 +119,23 @@ map("n", "<leader>s", function()
     vim.cmd("read " .. template)
 end, { desc = "Insert filetype skeleton" })
 
--- <leader>tt — tmux terminal pane that follows the current file's directory.
--- First press: split a new pane below, cd to current file's dir, focus it.
--- Subsequent presses: cd the same pane to the new file's dir, focus it.
--- "The same pane" = pane with the user-option `@term=1` set (which we set on creation).
--- Only does anything if nvim is running inside a tmux session.
-map("n", "<leader>tt", function()
-    if vim.env.TMUX == nil then
-        vim.notify("Not running in a tmux session", vim.log.levels.WARN)
-        return
-    end
-
-    -- Where the file we're editing lives. Fall back to nvim's cwd if no file.
-    local bufname = vim.api.nvim_buf_get_name(0)
-    local dir = (bufname ~= "" and vim.fn.fnamemodify(bufname, ":p:h")) or vim.fn.getcwd()
-
-    -- Look for an existing @term=1 pane in the current tmux window.
-    local pane_id = nil
-    local handle = io.popen("tmux list-panes -F '#{pane_id} #{@term}'")
-    if handle then
-        for line in handle:lines() do
-            local id, marker = line:match("(%S+)%s+(%S*)")
-            if marker == "1" then
-                pane_id = id
-                break
-            end
-        end
-        handle:close()
-    end
-
-    if pane_id then
-        -- Existing pane: cd it (the leading space prevents the cd from polluting
-        -- shell history, in zsh/bash with HISTCONTROL=ignorespace) and focus it.
-        vim.fn.system({ "tmux", "send-keys", "-t", pane_id,
-                        " cd " .. vim.fn.shellescape(dir), "Enter" })
-        vim.fn.system({ "tmux", "select-pane", "-t", pane_id })
-    else
-        -- No pane yet: split below, 10 lines tall, cd'd to dir. Then mark it
-        -- with @term=1 so future <leader>tt presses find this same pane.
-        vim.fn.system({ "tmux", "split-window", "-v", "-l", "10", "-c", dir })
-        vim.fn.system({ "tmux", "set-option", "-p", "@term", "1" })
-    end
-end, { desc = "tmux terminal that follows the current file's directory" })
+-- tmux_term — one shell pane below nvim that follows the current file.
+-- Module lives in lua/tmux_term.lua. Three bindings:
+--   <leader>tt  open/focus pane, cd'd to current file's git PROJECT ROOT
+--               (or file's dir if not in a repo)
+--   <leader>tk  grow the pane to 25 rows (default open height is 10)
+--   <leader>tr  in Visual mode: send the selected text to the pane and run it
+local tt = require("tmux_term")
+map("n", "<leader>tt", tt.open, { desc = "tmux term: open/focus (cd to project root)" })
+map("n", "<leader>tk", function() tt.resize(25) end, { desc = "tmux term: grow to 25 rows" })
+map("v", "<leader>tr", function()
+    -- Compute the visual selection's line range. Using line("v") + line(".")
+    -- avoids polluting any register (vs the more common `normal! y` approach).
+    local s, e = vim.fn.line("v"), vim.fn.line(".")
+    if s > e then s, e = e, s end
+    local lines = vim.api.nvim_buf_get_lines(0, s - 1, e, false)
+    tt.run(table.concat(lines, "\n"))
+end, { desc = "tmux term: run visual selection" })
 
 
 
