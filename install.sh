@@ -59,7 +59,15 @@ if [ "$OS" = macos ]; then
         || brew install --cask ghostty
 
 elif [ "$OS" = linux ]; then
+    # neovim PPA first: Ubuntu's default nvim is too old (24.04 ships 0.9; our
+    # config uses 0.11+ APIs like vim.lsp.config and the vim.uv namespace). The
+    # add-apt-repository tool comes from software-properties-common. Both
+    # commands are no-ops if already in place, so this stays idempotent.
     sudo apt update
+    sudo apt install -y software-properties-common
+    sudo add-apt-repository -y ppa:neovim-ppa/unstable
+    sudo apt update
+
     sudo apt install -y \
         tmux neovim ripgrep fd-find fzf gh \
         curl unzip fontconfig build-essential git
