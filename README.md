@@ -89,6 +89,40 @@ WSL Ubuntu: GUI app works via **WSLg** (Windows 11+). GPU acceleration depends o
 - `~/.claude/` — Claude Code's per-project memory; tied to absolute paths so doesn't directly sync across machines
 - The **learning hub itself** lives in its own repo (`skbays03/learning`) — clone separately to `~/Desktop/learning/`
 
+## Multi-machine workflow
+
+### `lazy-lock.json` — plugin version sync
+
+`config/nvim/lazy-lock.json` pins every nvim plugin to a specific commit SHA. It's tracked in git so both machines run the same plugin versions.
+
+**Discipline: run `:Lazy update` on ONE machine only** (designate the Mac, for instance). Sync the other machine via `git pull`.
+
+If both machines update plugins independently, they each produce a different lock file. The next push/pull collides and you have to resolve a merge conflict on a file full of opaque SHAs.
+
+#### Workflow
+
+1. On the "update" machine: open nvim, run `:Lazy update`. Review what's changing. When done, the lock file reflects the new versions.
+2. Commit + push:
+   ```sh
+   c "lazy: update plugins $(date +%Y-%m-%d)"
+   ```
+3. On the other machine: `git pull` (or open the launcher, which auto-pulls). Open nvim — lazy.nvim sees the updated lock and installs the matching versions automatically.
+
+#### If a merge conflict happens anyway
+
+From `~/dotfiles` after a conflicting `git pull`:
+
+```sh
+# Accept the remote version (what you just pulled). Usually what you want.
+git checkout --theirs config/nvim/lazy-lock.json
+git add config/nvim/lazy-lock.json
+git commit
+# Then re-sync nvim's installed plugins to the lock file:
+nvim -c ':Lazy restore' -c ':qa'
+```
+
+To accept the LOCAL version instead, use `--ours` in place of `--theirs`. `--theirs`/`--ours` flip meaning during a rebase vs a pull-merge — for a plain `git pull`, `--theirs = remote`.
+
 ## Companion repo
 
 - `skbays03/learning` (private) — the CS prep hub: per-subject topic files, working code, the sift / sentinel / fs projects, the meta-skills doc. Clone to `~/Desktop/learning/` so the launcher script finds it.
