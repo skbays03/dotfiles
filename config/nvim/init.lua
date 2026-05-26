@@ -113,34 +113,43 @@ map("n", "N", "Nzzzv", { desc = "Previous search result (centered)" })
 -- in terminals, and using C-l for one direction without C-h for the other
 -- would be asymmetric.
 map("i", "<M-l>", function()
-    local line = vim.api.nvim_get_current_line()
-    local col  = vim.fn.col(".")             -- 1-indexed cursor column
-    for i = col, #line do
-        local c = line:sub(i, i)
-        if c == ")" or c == "]" or c == "}" or c == "\"" or c == "'" then
-            -- Position just AFTER the closer. nvim_win_set_cursor uses
-            -- 0-indexed column; 0-indexed i == 1-indexed (i+1), which is
-            -- "past" the char at 1-indexed position i.
-            vim.api.nvim_win_set_cursor(0, { vim.fn.line("."), i })
-            return
+    local row    = vim.fn.line(".")
+    local col    = vim.fn.col(".")
+    local n_rows = vim.api.nvim_buf_line_count(0)
+
+    -- Search current line from cursor onward, then each subsequent line top to bottom.
+    for r = row, n_rows do
+        local line      = vim.api.nvim_buf_get_lines(0, r - 1, r, false)[1] or ""
+        local start_col = (r == row) and col or 1
+        for i = start_col, #line do
+            local c = line:sub(i, i)
+            if c == ")" or c == "]" or c == "}" or c == "\"" or c == "'" then
+                -- Position cursor just AFTER the char (0-indexed col = i).
+                vim.api.nvim_win_set_cursor(0, { r, i })
+                return
+            end
         end
     end
-end, { desc = "Jump past next closing bracket/quote" })
+end, { desc = "Jump past next closing bracket/quote (multi-line)" })
 
 map("i", "<M-h>", function()
-    local line = vim.api.nvim_get_current_line()
-    local col  = vim.fn.col(".")
-    -- Iterate backwards from the char before the cursor.
-    for i = col - 1, 1, -1 do
-        local c = line:sub(i, i)
-        if c == "(" or c == "[" or c == "{" or c == "\"" or c == "'" then
-            -- Position BEFORE the opener. 0-indexed (i-1) puts cursor at
-            -- 1-indexed column i, which renders as "just before" char i.
-            vim.api.nvim_win_set_cursor(0, { vim.fn.line("."), i - 1 })
-            return
+    local row = vim.fn.line(".")
+    local col = vim.fn.col(".")
+
+    -- Search current line backwards from before cursor, then each prior line bottom to top.
+    for r = row, 1, -1 do
+        local line    = vim.api.nvim_buf_get_lines(0, r - 1, r, false)[1] or ""
+        local end_col = (r == row) and (col - 1) or #line
+        for i = end_col, 1, -1 do
+            local c = line:sub(i, i)
+            if c == "(" or c == "[" or c == "{" or c == "\"" or c == "'" then
+                -- Position cursor just BEFORE the char (0-indexed col = i - 1).
+                vim.api.nvim_win_set_cursor(0, { r, i - 1 })
+                return
+            end
         end
     end
-end, { desc = "Jump before previous opening bracket/quote" })
+end, { desc = "Jump before previous opening bracket/quote (multi-line)" })
 
 -- Insert-mode line navigation without reaching for arrow keys.
 --   <M-j>  cursor DOWN one line
