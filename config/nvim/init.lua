@@ -158,6 +158,18 @@ vim.api.nvim_create_autocmd("FileType", {
     pattern = { "c", "cpp", "h", "hpp" },
     callback = function()
         vim.opt_local.cinoptions:append("L0")
+
+        -- Use real tab characters (not spaces) for C/C++. Matches the
+        -- .clang-format setting used by format-on-save, so typed indent
+        -- and saved indent agree.
+        --   tabstop      = visual width of a tab character
+        --   shiftwidth   = indent step used by autoindent / >> / <<
+        --   softtabstop  = how Backspace/Tab behave near tab characters
+        --   expandtab    = OFF (insert real \t, not spaces)
+        vim.opt_local.expandtab    = false
+        vim.opt_local.tabstop      = 4
+        vim.opt_local.shiftwidth   = 4
+        vim.opt_local.softtabstop  = 4
     end,
 })
 
