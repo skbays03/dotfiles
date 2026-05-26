@@ -142,6 +142,14 @@ map("i", "<M-h>", function()
     end
 end, { desc = "Jump before previous opening bracket/quote" })
 
+-- Insert-mode line navigation without reaching for arrow keys.
+--   <M-j>  cursor DOWN one line
+--   <M-k>  cursor UP one line
+-- (h/l are bracket-jumping above; j/k are line-jumping here.
+--  Together: M+hjkl covers all four directions, no arrow keys needed.)
+map("i", "<M-j>", "<Down>", { desc = "Move cursor down one line" })
+map("i", "<M-k>", "<Up>",   { desc = "Move cursor up one line" })
+
 -- <leader>s — insert filetype skeleton.
 -- Looks for ~/.config/nvim/templates/<filetype>.skel and reads it in at cursor.
 -- Drop new template files in that dir for any filetype (python.skel, c.skel, ...).
