@@ -101,25 +101,46 @@ map("n", "<C-u>", "<C-u>zz", { desc = "Scroll up half-page (centered)" })
 map("n", "n", "nzzzv", { desc = "Next search result (centered)" })
 map("n", "N", "Nzzzv", { desc = "Previous search result (centered)" })
 
--- <C-l> in INSERT mode: jump past the next closing bracket/quote on the
--- current line. Use when typing inside autopairs-inserted (), [], {}, "", '' —
--- finish the contents, then C-l to escape past the closer in one keystroke
--- (no arrow keys, no <Esc>).
+-- Insert-mode bracket escapes (using Option/Alt — Ghostty has
+-- `macos-option-as-alt = true` so Option-H / Option-L produce M-h / M-l).
 --
--- Backward equivalent (C-h) is intentionally NOT bound — C-h shares its
--- keycode with Backspace in terminals; binding it would break <BS>. If you
--- find you actually need backward, M-h (Alt-H) is the safe alternative.
-map("i", "<C-l>", function()
-    local line   = vim.api.nvim_get_current_line()
-    local col    = vim.fn.col(".")               -- 1-indexed cursor column
-    local rest   = line:sub(col)
-    local offset = rest:find("[)%]}\"']")        -- find first of ) ] } " '
-    if offset then
-        -- Move to one position past that char. nvim_win_set_cursor wants
-        -- 0-indexed column, so the +offset and -1 cancel.
-        vim.api.nvim_win_set_cursor(0, { vim.fn.line("."), col + offset - 1 })
+--   <M-l>  jump PAST the next closing bracket/quote on the current line.
+--          Use when typing inside autopairs-inserted (), [], {}, "", ''.
+--   <M-h>  jump BEFORE the previous opening bracket/quote on the current line.
+--          The mirror of M-l for backing out of a pair.
+--
+-- C-l / C-h are deliberately NOT used: C-h shares its keycode with Backspace
+-- in terminals, and using C-l for one direction without C-h for the other
+-- would be asymmetric.
+map("i", "<M-l>", function()
+    local line = vim.api.nvim_get_current_line()
+    local col  = vim.fn.col(".")             -- 1-indexed cursor column
+    for i = col, #line do
+        local c = line:sub(i, i)
+        if c == ")" or c == "]" or c == "}" or c == "\"" or c == "'" then
+            -- Position just AFTER the closer. nvim_win_set_cursor uses
+            -- 0-indexed column; 0-indexed i == 1-indexed (i+1), which is
+            -- "past" the char at 1-indexed position i.
+            vim.api.nvim_win_set_cursor(0, { vim.fn.line("."), i })
+            return
+        end
     end
 end, { desc = "Jump past next closing bracket/quote" })
+
+map("i", "<M-h>", function()
+    local line = vim.api.nvim_get_current_line()
+    local col  = vim.fn.col(".")
+    -- Iterate backwards from the char before the cursor.
+    for i = col - 1, 1, -1 do
+        local c = line:sub(i, i)
+        if c == "(" or c == "[" or c == "{" or c == "\"" or c == "'" then
+            -- Position BEFORE the opener. 0-indexed (i-1) puts cursor at
+            -- 1-indexed column i, which renders as "just before" char i.
+            vim.api.nvim_win_set_cursor(0, { vim.fn.line("."), i - 1 })
+            return
+        end
+    end
+end, { desc = "Jump before previous opening bracket/quote" })
 
 -- <leader>s — insert filetype skeleton.
 -- Looks for ~/.config/nvim/templates/<filetype>.skel and reads it in at cursor.
