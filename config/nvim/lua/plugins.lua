@@ -396,7 +396,18 @@ return {
                 mapping = cmp.mapping.preset.insert({
                     ["<C-Space>"] = cmp.mapping.complete(),
                     ["<C-e>"]     = cmp.mapping.abort(),
-                    ["<CR>"]      = cmp.mapping.confirm({ select = true }),   -- accept selection (or first item)
+                    -- Enter: confirm completion ONLY if menu is open AND an item
+                    -- is explicitly selected. Otherwise fall through so
+                    -- nvim-autopairs can do its brace-split-on-Enter trick.
+                    -- `select = false` keeps Enter from auto-confirming the
+                    -- first item — that's <Tab>'s job.
+                    ["<CR>"]      = cmp.mapping(function(fallback)
+                        if cmp.visible() and cmp.get_selected_entry() then
+                            cmp.confirm({ select = false })
+                        else
+                            fallback()
+                        end
+                    end, { "i", "s" }),
                     ["<Tab>"]     = cmp.mapping.select_next_item(),
                     ["<S-Tab>"]   = cmp.mapping.select_prev_item(),
                 }),
