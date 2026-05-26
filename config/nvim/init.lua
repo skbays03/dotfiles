@@ -101,6 +101,26 @@ map("n", "<C-u>", "<C-u>zz", { desc = "Scroll up half-page (centered)" })
 map("n", "n", "nzzzv", { desc = "Next search result (centered)" })
 map("n", "N", "Nzzzv", { desc = "Previous search result (centered)" })
 
+-- <C-l> in INSERT mode: jump past the next closing bracket/quote on the
+-- current line. Use when typing inside autopairs-inserted (), [], {}, "", '' —
+-- finish the contents, then C-l to escape past the closer in one keystroke
+-- (no arrow keys, no <Esc>).
+--
+-- Backward equivalent (C-h) is intentionally NOT bound — C-h shares its
+-- keycode with Backspace in terminals; binding it would break <BS>. If you
+-- find you actually need backward, M-h (Alt-H) is the safe alternative.
+map("i", "<C-l>", function()
+    local line   = vim.api.nvim_get_current_line()
+    local col    = vim.fn.col(".")               -- 1-indexed cursor column
+    local rest   = line:sub(col)
+    local offset = rest:find("[)%]}\"']")        -- find first of ) ] } " '
+    if offset then
+        -- Move to one position past that char. nvim_win_set_cursor wants
+        -- 0-indexed column, so the +offset and -1 cancel.
+        vim.api.nvim_win_set_cursor(0, { vim.fn.line("."), col + offset - 1 })
+    end
+end, { desc = "Jump past next closing bracket/quote" })
+
 -- <leader>s — insert filetype skeleton.
 -- Looks for ~/.config/nvim/templates/<filetype>.skel and reads it in at cursor.
 -- Drop new template files in that dir for any filetype (python.skel, c.skel, ...).
