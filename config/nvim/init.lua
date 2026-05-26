@@ -185,6 +185,21 @@ vim.diagnostic.config({
     },
 })
 
+-- Auto-format C/C++ files on save via clangd (the LSP-attached formatter).
+-- This is the "VS Code-equivalent" of format-on-save. Bypass on any single
+-- save with `:noa w` (no autocmds, write) if clangd reformats something you
+-- want to keep as-is.
+vim.api.nvim_create_autocmd("BufWritePre", {
+    pattern = { "*.c", "*.cpp", "*.h", "*.hpp" },
+    callback = function() vim.lsp.buf.format({ async = false }) end,
+})
+
+-- Manual format keybind for any file with an attached LSP (Python via pyright,
+-- Lua via lua_ls, etc.). For C/C++ this is mostly redundant given save-format
+-- above, but handy when you want to reformat without saving.
+map("n", "<leader>fm", function() vim.lsp.buf.format({ async = false }) end,
+    { desc = "Format buffer via LSP" })
+
 
 
 -- =============================================================================

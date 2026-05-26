@@ -383,6 +383,34 @@ return {
     },
 
     -- =========================================================================
+    -- nvim-autopairs — auto-insert closing braces / parens / quotes
+    -- =========================================================================
+    -- Type `{` → get `{|}` (cursor between). Press Enter → 3-line block with
+    -- the cursor on the middle line, indented. This is the missing piece
+    -- between vim's cindent and VS Code's "Enter inside braces" experience.
+    --
+    -- treesitter-aware (won't pair inside strings/comments). Integrated with
+    -- nvim-cmp so confirming a completion that ends in `(` also handles the
+    -- parens correctly.
+    {
+        "windwp/nvim-autopairs",
+        event = "InsertEnter",
+        dependencies = { "hrsh7th/nvim-cmp" },
+        config = function()
+            require("nvim-autopairs").setup({
+                check_ts = true,   -- treesitter-aware
+            })
+            -- Wire to nvim-cmp's confirm event so completions that produce
+            -- callable signatures (like func()) get the parens-pair treatment.
+            local ok_cmp,   cmp        = pcall(require, "cmp")
+            local ok_pairs, pairs_cmp  = pcall(require, "nvim-autopairs.completion.cmp")
+            if ok_cmp and ok_pairs then
+                cmp.event:on("confirm_done", pairs_cmp.on_confirm_done())
+            end
+        end,
+    },
+
+    -- =========================================================================
     -- lazygit.nvim — wrap the lazygit TUI in a floating nvim window
     -- =========================================================================
     -- <leader>lg opens lazygit over the current nvim window. Inside lazygit:
