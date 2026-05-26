@@ -170,6 +170,13 @@ vim.api.nvim_create_autocmd("FileType", {
         vim.opt_local.tabstop      = 4
         vim.opt_local.shiftwidth   = 4
         vim.opt_local.softtabstop  = 4
+
+        -- Use vim's built-in cindent (C-aware) instead of treesitter's indent
+        -- module. The treesitter indent for C/C++ has gaps that produce
+        -- "no indent" inside braces from nvim-autopairs's Enter splitter.
+        -- cindent has been around forever and indents braces correctly.
+        vim.opt_local.cindent      = true
+        vim.opt_local.indentexpr   = ""    -- clear treesitter's indentexpr
     end,
 })
 
