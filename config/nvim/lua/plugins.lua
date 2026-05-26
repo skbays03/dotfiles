@@ -200,6 +200,25 @@ return {
         },
         opts = {
             close_if_last_window = true,      -- auto-close nvim if tree is the only window
+            sort_case_insensitive = true,     -- 'README.md' next to 'readme_old.md', not separated
+            -- Default sort = "order by type": directories first, then files
+            -- grouped by extension (all .hpp together, all .cpp together, etc.),
+            -- ties broken by name. Same as pressing `ot` inside the tree, but
+            -- applied automatically on every open.
+            sort_function = function(a, b)
+                -- Directories above files.
+                if a.type ~= b.type then
+                    return a.type == "directory"
+                end
+                -- Same type — for files, sort by extension first.
+                if a.type == "file" then
+                    local ext_a = a.name:match("%.[^.]+$") or ""
+                    local ext_b = b.name:match("%.[^.]+$") or ""
+                    if ext_a ~= ext_b then return ext_a < ext_b end
+                end
+                -- Final tiebreak: case-insensitive name.
+                return a.name:lower() < b.name:lower()
+            end,
             window = {
                 width = 35,
                 mappings = {
