@@ -159,6 +159,17 @@ end, { desc = "Jump before previous opening bracket/quote (multi-line)" })
 map("i", "<M-j>", "<Down>", { desc = "Move cursor down one line" })
 map("i", "<M-k>", "<Up>",   { desc = "Move cursor up one line" })
 
+-- Word + line-end motions in insert mode (also arrow-free).
+--   <M-w>  forward by word    (vim's `w` motion)
+--   <M-b>  backward by word   (vim's `b` motion)
+--   <M-a>  start of line      (first non-blank — vim's `^`)
+--   <M-e>  end of line        (last char — vim's `$`)
+-- These use <C-o> which runs ONE normal-mode command then returns to insert.
+map("i", "<M-w>", "<C-o>w", { desc = "Insert: next word" })
+map("i", "<M-b>", "<C-o>b", { desc = "Insert: previous word" })
+map("i", "<M-a>", "<C-o>^", { desc = "Insert: start of line (first non-blank)" })
+map("i", "<M-e>", "<C-o>$", { desc = "Insert: end of line" })
+
 -- <leader>s — insert filetype skeleton.
 -- Looks for ~/.config/nvim/templates/<filetype>.skel and reads it in at cursor.
 -- Drop new template files in that dir for any filetype (python.skel, c.skel, ...).
