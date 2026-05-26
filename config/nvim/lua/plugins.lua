@@ -266,7 +266,14 @@ return {
                 "bash", "markdown", "json",         -- everyday
             },
             highlight = { enable = true },
-            indent = { enable = true },
+            indent = {
+                enable = true,
+                -- Treesitter's C/C++ indent module has gaps that produce no-indent
+                -- inside braces (especially with nvim-autopairs's Enter splitter).
+                -- Fall back to vim's reliable cindent for C/C++; treesitter still
+                -- handles indent for Lua/Python/etc.
+                disable = { "c", "cpp" },
+            },
         },
         config = function(_, opts)
             require("nvim-treesitter.configs").setup(opts)
