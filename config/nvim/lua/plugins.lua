@@ -200,24 +200,32 @@ return {
         },
         opts = {
             close_if_last_window = true,      -- auto-close nvim if tree is the only window
-            sort_case_insensitive = true,     -- 'README.md' next to 'readme_old.md', not separated
             -- Default sort = "order by type": directories first, then files
             -- grouped by extension (all .hpp together, all .cpp together, etc.),
-            -- ties broken by name. Same as pressing `ot` inside the tree, but
-            -- applied automatically on every open.
+            -- ties broken by case-insensitive name. Same as pressing `ot`
+            -- inside the tree, but applied automatically on every open.
+            --
+            -- Defensive: neo-tree occasionally passes special node types
+            -- (e.g., "message" for the "(N hidden items)" line), or partially-
+            -- populated nodes. Guard against missing fields so the sort
+            -- doesn't throw and break the whole tree render.
             sort_function = function(a, b)
+                if not a or not b then return false end
+                local an, bn = a.name or "", b.name or ""
+                local at, bt = a.type or "", b.type or ""
                 -- Directories above files.
-                if a.type ~= b.type then
-                    return a.type == "directory"
+                if at ~= bt then
+                    if at == "directory" then return true end
+                    if bt == "directory" then return false end
                 end
-                -- Same type — for files, sort by extension first.
-                if a.type == "file" then
-                    local ext_a = a.name:match("%.[^.]+$") or ""
-                    local ext_b = b.name:match("%.[^.]+$") or ""
+                -- For regular files, sort by extension first.
+                if at == "file" then
+                    local ext_a = an:match("%.[^.]+$") or ""
+                    local ext_b = bn:match("%.[^.]+$") or ""
                     if ext_a ~= ext_b then return ext_a < ext_b end
                 end
                 -- Final tiebreak: case-insensitive name.
-                return a.name:lower() < b.name:lower()
+                return an:lower() < bn:lower()
             end,
             window = {
                 width = 35,
