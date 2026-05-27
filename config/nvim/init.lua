@@ -101,63 +101,15 @@ map("n", "<C-u>", "<C-u>zz", { desc = "Scroll up half-page (centered)" })
 map("n", "n", "nzzzv", { desc = "Next search result (centered)" })
 map("n", "N", "Nzzzv", { desc = "Previous search result (centered)" })
 
--- Insert-mode bracket escapes (using Option/Alt — Ghostty has
--- `macos-option-as-alt = true` so Option-H / Option-L produce M-h / M-l).
---
---   <M-l>  jump PAST the next closing bracket/quote on the current line.
---          Use when typing inside autopairs-inserted (), [], {}, "", ''.
---   <M-h>  jump BEFORE the previous opening bracket/quote on the current line.
---          The mirror of M-l for backing out of a pair.
---
--- C-l / C-h are deliberately NOT used: C-h shares its keycode with Backspace
--- in terminals, and using C-l for one direction without C-h for the other
--- would be asymmetric.
-map("i", "<M-l>", function()
-    local row    = vim.fn.line(".")
-    local col    = vim.fn.col(".")
-    local n_rows = vim.api.nvim_buf_line_count(0)
-
-    -- Search current line from cursor onward, then each subsequent line top to bottom.
-    for r = row, n_rows do
-        local line      = vim.api.nvim_buf_get_lines(0, r - 1, r, false)[1] or ""
-        local start_col = (r == row) and col or 1
-        for i = start_col, #line do
-            local c = line:sub(i, i)
-            if c == ")" or c == "]" or c == "}" or c == "\"" or c == "'" then
-                -- Position cursor just AFTER the char (0-indexed col = i).
-                vim.api.nvim_win_set_cursor(0, { r, i })
-                return
-            end
-        end
-    end
-end, { desc = "Jump past next closing bracket/quote (multi-line)" })
-
-map("i", "<M-h>", function()
-    local row = vim.fn.line(".")
-    local col = vim.fn.col(".")
-
-    -- Search current line backwards from before cursor, then each prior line bottom to top.
-    for r = row, 1, -1 do
-        local line    = vim.api.nvim_buf_get_lines(0, r - 1, r, false)[1] or ""
-        local end_col = (r == row) and (col - 1) or #line
-        for i = end_col, 1, -1 do
-            local c = line:sub(i, i)
-            if c == "(" or c == "[" or c == "{" or c == "\"" or c == "'" then
-                -- Position cursor just BEFORE the char (0-indexed col = i - 1).
-                vim.api.nvim_win_set_cursor(0, { r, i - 1 })
-                return
-            end
-        end
-    end
-end, { desc = "Jump before previous opening bracket/quote (multi-line)" })
-
--- Insert-mode line navigation without reaching for arrow keys.
---   <M-j>  cursor DOWN one line
---   <M-k>  cursor UP one line
--- (h/l are bracket-jumping above; j/k are line-jumping here.
---  Together: M+hjkl covers all four directions, no arrow keys needed.)
-map("i", "<M-j>", "<Down>", { desc = "Move cursor down one line" })
-map("i", "<M-k>", "<Up>",   { desc = "Move cursor up one line" })
+-- Insert-mode cursor movement on the home row (Ghostty has
+-- `macos-option-as-alt = true` so Option-X produces <M-X>).
+-- Mirrors hjkl from normal/visual: left, down, up, right — one char
+-- or one line per press. Lets us move around mid-insert without
+-- reaching for arrows or dropping back to normal mode.
+map("i", "<M-h>", "<Left>",  { desc = "Move cursor left one char" })
+map("i", "<M-j>", "<Down>",  { desc = "Move cursor down one line" })
+map("i", "<M-k>", "<Up>",    { desc = "Move cursor up one line" })
+map("i", "<M-l>", "<Right>", { desc = "Move cursor right one char" })
 
 -- Word + line-end motions in insert mode (also arrow-free).
 --   <M-w>  forward by word    (vim's `w` motion)
