@@ -150,19 +150,6 @@ return {
         branch = "0.1.x",
         cmd = "Telescope",        -- :Telescope ... triggers lazy-load (needed by alpha dashboard buttons)
         dependencies = { "nvim-lua/plenary.nvim" },  -- required utility lib
-        opts = {
-            defaults = {
-                preview = {
-                    -- Workaround: nvim 0.12.2's built-in treesitter triggers a
-                    -- "attempt to call method 'range' (a nil value)" error when
-                    -- the markdown injection query runs on certain previews.
-                    -- Disabling treesitter in previews falls back to vim's regex
-                    -- syntax highlighting (slightly less colorful, but no errors).
-                    -- The actual editor buffers still use treesitter normally.
-                    treesitter = false,
-                },
-            },
-        },
         keys = {
             { "<leader>ff", "<cmd>Telescope find_files<CR>", desc = "Fuzzy file finder" },
             { "<leader>fg", "<cmd>Telescope live_grep<CR>",  desc = "Live grep (needs ripgrep)" },
@@ -180,7 +167,7 @@ return {
     -- A persistent left-sidebar showing your project's directory structure.
     -- Browse with j/k, <CR> opens a file in the main editor window.
     --
-    -- Keymap: <leader>n toggles the tree open/closed.
+    -- Keymap: <leader>n focuses the tree (opens if needed; closes if already focused).
     -- Inside the tree: <CR>=open, a=add file, d=delete, r=rename, R=refresh,
     -- H=toggle hidden files, .=set as root. Press ? inside the tree to see all.
     --
@@ -196,7 +183,13 @@ return {
             "MunifTanjim/nui.nvim",           -- UI primitives neo-tree uses
         },
         keys = {
-            { "<leader>n", "<cmd>Neotree toggle<CR>", desc = "Toggle file tree" },
+            { "<leader>n", function()
+                if vim.bo.filetype == "neo-tree" then
+                    vim.cmd("Neotree close")
+                else
+                    vim.cmd("Neotree focus")
+                end
+            end, desc = "Focus / close file tree" },
         },
         opts = {
             close_if_last_window = true,      -- auto-close nvim if tree is the only window
@@ -237,6 +230,35 @@ return {
                 follow_current_file = { enabled = true },   -- highlight the file you're editing
                 use_libuv_file_watcher = true,              -- auto-refresh on filesystem changes
             },
+        },
+    },
+
+    -- =========================================================================
+    -- persistence.nvim — session save/restore across nvim restarts
+    -- =========================================================================
+    -- Saves a session per directory on nvim exit; restore via keymap. Survives
+    -- kernel reboots, config reloads, plugin reinstalls. One session per
+    -- project working directory — opening nvim in ~/Desktop/projects/one_dash
+    -- gets a different session than opening it in ~/dotfiles.
+    --
+    -- Sessions live at vim.fn.stdpath("state") .. "/sessions/", which is
+    -- typically ~/.local/state/nvim/sessions/<encoded-dir-path>.vim
+    --
+    -- Use :Sessions (defined in init.lua) to see what sessions exist + which
+    -- directory each maps to.
+    {
+        "folke/persistence.nvim",
+        event = "BufReadPre",   -- load early to catch initial buffers
+        opts = {
+            options = { "buffers", "curdir", "tabpages", "winsize", "help", "globals", "skiprtp" },
+        },
+        keys = {
+            { "<leader>qs", function() require("persistence").load() end,
+                desc = "Restore session for this directory" },
+            { "<leader>ql", function() require("persistence").load({ last = true }) end,
+                desc = "Restore last session (any directory)" },
+            { "<leader>qd", function() require("persistence").stop() end,
+                desc = "Don't save current session on exit" },
         },
     },
 
@@ -325,6 +347,11 @@ return {
     },
     {
         "neovim/nvim-lspconfig",
+        -- Load before any buffer's FileType event fires, so vim.lsp.enable()
+        -- has registered its autocmd in time for the buffer to attach. Without
+        -- this, lazy.nvim defers loading to VeryLazy — too late, the first
+        -- buffer's FileType has already fired with no handler registered.
+        event = { "BufReadPre", "BufNewFile" },
         dependencies = { "hrsh7th/cmp-nvim-lsp" },   -- so LSP knows cmp's capabilities
         config = function()
             -- ---------- LSP config (nvim 0.11+ API) ------------------------
@@ -353,9 +380,57 @@ return {
                 },
             })
 
+            -- slangd — slang's own LSP daemon, ships in the slang prebuilt
+            -- tarball (~/.local/share/slang-X.Y.Z/bin/slangd, symlinked into
+            -- ~/.local/bin). NOT in mason; installed manually via slang's
+            -- GitHub release (see scripts/bootstrap.py in one_dash for the
+            -- exact ritual). Slang's parser accepts HLSL by default, so the
+            -- same daemon serves both .slang and .hlsl files.
+            vim.lsp.config("slangd", {
+                cmd          = { "slangd" },
+                filetypes    = { "slang", "hlsl" },
+                root_markers = { ".git", "CMakeLists.txt" },
+            })
+
+            -- nvim doesn't detect .hlsl as a filetype by default; map it.
+            vim.filetype.add({ extension = { hlsl = "hlsl" } })
+
+            -- clangd flags — enable the include-discovery workflow.
+            --   --header-insertion=iwyu        offer "Add include" code actions
+            --                                   on undefined symbols; auto-insert
+            --                                   on completion accept
+            --   --all-scopes-completion        surface symbols from unimported
+            --                                   headers (so `vector` suggests
+            --                                   `std::vector` even without
+            --                                   <vector> included yet)
+            --   --background-index             build + persist a project-wide
+            --                                   symbol index so include
+            --                                   suggestions actually know where
+            --                                   symbols live (first index of a
+            --                                   codebase takes ~30s; cached to
+            --                                   disk afterwards)
+            --   --completion-style=detailed    show full signatures in the
+            --                                   completion popup
+            --   --clang-tidy                   surface .clang-tidy diagnostics
+            --                                   inline
+            vim.lsp.config("clangd", {
+                cmd = {
+                    "clangd",
+                    "--header-insertion=iwyu",
+                    "--all-scopes-completion",
+                    "--background-index",
+                    "--completion-style=detailed",
+                    "--clang-tidy",
+                },
+            })
+
             -- Enable the servers we want. mason installs the binaries (via
-            -- mason-lspconfig's ensure_installed); we just turn them on.
-            vim.lsp.enable({ "clangd", "pyright", "lua_ls" })
+            -- mason-lspconfig's ensure_installed); slangd and rust_analyzer
+            -- are the exceptions — slangd is system-installed from upstream,
+            -- rust-analyzer is a rustup component (version-locked to the
+            -- toolchain; `rustup component add rust-analyzer`). We just turn
+            -- them on either way.
+            vim.lsp.enable({ "clangd", "pyright", "lua_ls", "slangd", "rust_analyzer" })
 
             -- ---------- LspAttach: buffer-local keymaps --------------------
             -- This API is stable across nvim versions. Fires once per buffer
@@ -367,8 +442,11 @@ return {
                     vim.keymap.set("n", "gD", vim.lsp.buf.declaration, vim.tbl_extend("force", bufopts, { desc = "Go to declaration" }))
                     vim.keymap.set("n", "gr", vim.lsp.buf.references, vim.tbl_extend("force", bufopts, { desc = "Find references" }))
                     vim.keymap.set("n", "gi", vim.lsp.buf.implementation, vim.tbl_extend("force", bufopts, { desc = "Go to implementation" }))
-                    vim.keymap.set("n", "K",  vim.lsp.buf.hover,       vim.tbl_extend("force", bufopts, { desc = "Hover docs" }))
+                    vim.keymap.set("n", "K", function()
+                        vim.lsp.buf.hover({ border = "rounded" })
+                    end, vim.tbl_extend("force", bufopts, { desc = "Hover docs" }))
                     vim.keymap.set("n", "<leader>rn", vim.lsp.buf.rename, vim.tbl_extend("force", bufopts, { desc = "Rename symbol" }))
+                    vim.keymap.set("n", "<leader>cr", vim.lsp.buf.rename, vim.tbl_extend("force", bufopts, { desc = "Rename symbol (LSP)" }))
                     vim.keymap.set("n", "<leader>ca", vim.lsp.buf.code_action, vim.tbl_extend("force", bufopts, { desc = "Code action" }))
                     vim.keymap.set("n", "<leader>e",  vim.diagnostic.open_float, vim.tbl_extend("force", bufopts, { desc = "Show diagnostic" }))
                 end,
@@ -423,6 +501,41 @@ return {
                     { name = "buffer" },
                     { name = "path" },
                 }),
+                -- Size discipline. rust-analyzer sends far richer completion
+                -- payloads than clangd/pyright (full generic signatures + whole
+                -- rustdoc pages), which let the menu sprawl off-screen and the
+                -- docs float collide with it. Entry text is truncated here;
+                -- the docs window is bounded below.
+                formatting = {
+                    format = function(_, item)
+                        local function cap(s, n)
+                            if s and vim.fn.strchars(s) > n then
+                                return vim.fn.strcharpart(s, 0, n - 1) .. "…"
+                            end
+                            return s
+                        end
+                        item.abbr = cap(item.abbr, 40)  -- the completion text
+                        item.menu = cap(item.menu, 30)  -- the signature/source tag
+                        return item
+                    end,
+                },
+                -- Rounded borders on both popups (the completion list AND the
+                -- per-entry documentation panel). `FloatBorder:FloatBorder`
+                -- links cmp's border to the global FloatBorder highlight group
+                -- so the color matches LSP hover / diagnostic float / signature
+                -- help (all tokyonight blue via init.lua).
+                window = {
+                    completion = cmp.config.window.bordered({
+                        border = "rounded",
+                        winhighlight = "Normal:Normal,FloatBorder:FloatBorder,CursorLine:Visual,Search:None",
+                    }),
+                    documentation = cmp.config.window.bordered({
+                        border = "rounded",
+                        max_width = 60,
+                        max_height = 14,
+                        winhighlight = "Normal:Normal,FloatBorder:FloatBorder,CursorLine:Visual,Search:None",
+                    }),
+                },
             })
         end,
     },
@@ -453,6 +566,41 @@ return {
                 cmp.event:on("confirm_done", pairs_cmp.on_confirm_done())
             end
         end,
+    },
+
+    -- =========================================================================
+    -- dressing.nvim — float-window borders for vim.ui.select / vim.ui.input
+    -- =========================================================================
+    -- Code action menu (<leader>ca) and rename input (<leader>cr / <leader>rn)
+    -- use vim.ui.select + vim.ui.input under the hood. Native nvim renders
+    -- these inline (no border, no consistent theming). dressing hooks both
+    -- and re-renders as floating windows with rounded borders that inherit
+    -- the global FloatBorder highlight (tokyonight blue, set in init.lua).
+    --
+    -- Net effect: every popup in the editor — hover, signature, diagnostic,
+    -- completion, code action, rename — gets the same border + color.
+    {
+        "stevearc/dressing.nvim",
+        event = "VeryLazy",   -- only loads when first vim.ui call happens
+        opts = {
+            input = {
+                border = "rounded",
+                win_options = {
+                    winblend = 0,
+                    winhighlight = "Normal:Normal,FloatBorder:FloatBorder",
+                },
+            },
+            select = {
+                backend = { "builtin" },   -- floating window over fzf/telescope so style is consistent
+                builtin = {
+                    border = "rounded",
+                    win_options = {
+                        winblend = 0,
+                        winhighlight = "Normal:Normal,FloatBorder:FloatBorder",
+                    },
+                },
+            },
+        },
     },
 
     -- =========================================================================
@@ -489,5 +637,71 @@ return {
     -- =========================================================================
     -- Lazy-loaded; only attaches when you run :VimBeGood.
     { "ThePrimeagen/vim-be-good", cmd = "VimBeGood" },
+
+    -- =========================================================================
+    -- render-markdown.nvim — in-buffer markdown rendering
+    -- =========================================================================
+    -- Renders markdown directly inside nvim — no browser, no popup. Headings
+    -- get bold styling + indent, code blocks get a subtle background, tables
+    -- align properly, checkboxes become glyphs. Stays out of your way: the
+    -- underlying buffer is still plain markdown; the rendering is a visual
+    -- overlay (so `dd` deletes the actual markdown line, not the rendered
+    -- look).
+    --
+    -- Auto-loads on any .md filetype. Toggle off with `:RenderMarkdown disable`
+    -- (re-enable with `:RenderMarkdown enable`).
+    --
+    -- Depends on nvim-treesitter (already in this config) for the markdown
+    -- parser. Lazy `:Lazy sync` after first install to fetch the plugin.
+    -- MAINTENANCE NOTE: nvim-treesitter master (≤ cf12346a, 2026-03-23)
+    -- pre-dates nvim 0.12's TSNode[] query-match API change. Six handlers
+    -- in nvim-treesitter/lua/nvim-treesitter/query_predicates.lua call
+    -- match[id] expecting a single TSNode, but nvim 0.12 returns a list.
+    -- The crash surfaces as:
+    --     "attempt to call method 'range' (a nil value)"
+    -- when render-markdown parses a fenced code block (uses the
+    -- `set-lang-from-info-string!` directive).
+    --
+    -- Fix: six in-place `if type(node) == "table" then node = node[#node] end`
+    -- guards added to query_predicates.lua, marked `-- LOCAL PATCH`. The
+    -- patch lives in ~/.local/share/nvim/lazy/nvim-treesitter/ and will be
+    -- OVERWRITTEN by `:Lazy update nvim-treesitter` or `:TSUpdate`. After
+    -- those, re-grep for "LOCAL PATCH" — if missing, re-apply (or migrate
+    -- to nvim-treesitter's `main` branch once we're ready to validate it).
+    {
+        "MeanderingProgrammer/render-markdown.nvim",
+        dependencies = { "nvim-treesitter/nvim-treesitter" },
+        ft = { "markdown" },
+        opts = {
+            heading = { sign = false },     -- skip the gutter sign column (cleaner)
+            code    = { width = "block" },  -- code blocks span available width with bg
+        },
+    },
+
+    -- Peek: show a symbol's definition / implementation / references in a
+    -- floating window WITHOUT leaving your spot (no gd + <C-o> jumplist
+    -- churn). Same LSP machinery as `K` hover, but the payload is the
+    -- definition's source. The float is a real, editable window — run gd
+    -- inside it for a nested peek; <leader>pc closes every open peek.
+    {
+        "rmagatti/goto-preview",
+        keys = {
+            { "<leader>pd", function() require("goto-preview").goto_preview_definition() end,      desc = "Peek definition" },
+            { "<leader>pi", function() require("goto-preview").goto_preview_implementation() end,  desc = "Peek implementation" },
+            { "<leader>pt", function() require("goto-preview").goto_preview_type_definition() end, desc = "Peek type definition" },
+            { "<leader>pr", function() require("goto-preview").goto_preview_references() end,       desc = "Peek references" },
+            { "<leader>pc", function() require("goto-preview").close_all_win() end,                desc = "Close all peeks" },
+        },
+        config = function()
+            require("goto-preview").setup({
+                width = 100,              -- float width in columns
+                height = 20,              -- float height in rows
+                default_mappings = false, -- we define our own <leader>p* maps above
+                focus_on_open = true,     -- jump into the float so you can scroll / nested-peek
+                dismiss_on_move = false,  -- keep it open while you look; close with <leader>pc
+                post_open_hook = nil,
+            })
+        end,
+    },
 
 }

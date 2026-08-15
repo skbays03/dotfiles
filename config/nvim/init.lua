@@ -122,22 +122,91 @@ map("i", "<M-b>", "<C-o>b", { desc = "Insert: previous word" })
 map("i", "<M-a>", "<C-o>^", { desc = "Insert: start of line (first non-blank)" })
 map("i", "<M-e>", "<C-o>$", { desc = "Insert: end of line" })
 
+-- <leader>k — define the word/acronym under the cursor via the `dict` client.
+-- Tries FOLDOC (computing definitions), then VERA (computing-acronym
+-- expansions); both are purpose-built for tech terms (KDF, FQDN, AEAD, ...).
+-- Shows the result in a float. Needs the `dict` CLI; degrades to a notify.
+map("n", "<leader>k", function()
+    if vim.fn.executable("dict") == 0 then
+        vim.notify("`dict` not found — install it (brew install dict).",
+                   vim.log.levels.WARN)
+        return
+    end
+    local word = vim.fn.expand("<cword>")
+    if word == "" then return end
+    local out = vim.fn.systemlist({ "dict", "-d", "foldoc", word })
+    if vim.v.shell_error ~= 0 or #out == 0 then
+        out = vim.fn.systemlist({ "dict", "-d", "vera", word })
+    end
+    if vim.v.shell_error ~= 0 or #out == 0 then
+        vim.notify("No definition for '" .. word .. "'.", vim.log.levels.INFO)
+        return
+    end
+    vim.lsp.util.open_floating_preview(out, "plaintext",
+        { border = "rounded", max_width = 80 })
+end, { desc = "Define word/acronym under cursor (dict)" })
+
 -- <leader>s — insert filetype skeleton.
--- Looks for ~/.config/nvim/templates/<filetype>.skel and reads it in at cursor.
--- Drop new template files in that dir for any filetype (python.skel, c.skel, ...).
+-- Looks for ~/.config/nvim/templates/<extension>.skel FIRST, then falls
+-- back to <filetype>.skel. The extension check lets us distinguish .hpp
+-- from .cpp (both share filetype "cpp") so hpp.skel and cpp.skel can be
+-- different. Reads in AT the current line (pushing the current line down);
+-- for a freshly opened empty file the template starts at line 1, not 2.
+-- Drop new template files in that dir for any extension or filetype
+-- (python.skel, hpp.skel, sh.skel, ...).
 map("n", "<leader>s", function()
+    local ext = vim.fn.expand("%:e")
     local ft = vim.bo.filetype
-    if ft == "" then
-        vim.notify("No filetype detected; can't pick a template.", vim.log.levels.WARN)
+    local templates_dir = vim.fn.stdpath("config") .. "/templates/"
+
+    -- Try extension first (e.g., hpp → hpp.skel), then filetype as fallback
+    -- (e.g., python filetype → python.skel when extension was .py).
+    local template = nil
+    if ext ~= "" then
+        local by_ext = templates_dir .. ext .. ".skel"
+        if vim.fn.filereadable(by_ext) == 1 then
+            template = by_ext
+        end
+    end
+    if template == nil and ft ~= "" then
+        local by_ft = templates_dir .. ft .. ".skel"
+        if vim.fn.filereadable(by_ft) == 1 then
+            template = by_ft
+        end
+    end
+    if template == nil then
+        vim.notify("No template for extension '" .. ext .. "' or filetype '"
+                   .. ft .. "'.", vim.log.levels.WARN)
         return
     end
-    local template = vim.fn.stdpath("config") .. "/templates/" .. ft .. ".skel"
-    if vim.fn.filereadable(template) == 0 then
-        vim.notify("No template at " .. template, vim.log.levels.WARN)
-        return
+
+    -- Snapshot whether the buffer was effectively empty (just one empty
+    -- line — the state of a freshly opened file). If so, the original
+    -- blank line-1 will end up trailing after the insert, and we trim it.
+    local was_empty = (vim.fn.line("$") == 1 and vim.fn.getline(1) == "")
+
+    -- Record cursor position so we can snap back to the START of the
+    -- inserted template after the read (vim's default is to land at the
+    -- LAST inserted line, which is rarely what you want here).
+    local original_line = vim.fn.line(".")
+
+    -- `(N-1)read FILE` inserts AT the cursor line (pushing current line down).
+    -- At line 1 this evaluates to `0read` which inserts at the very top.
+    -- math.max(0, ...) defends against a pathological zero-line buffer where
+    -- line(".") returns 0 and (0-1) would be an invalid -1 range.
+    local insert_after = math.max(0, original_line - 1)
+    vim.cmd(insert_after .. "read " .. template)
+
+    -- Trim the trailing leftover empty line that was the original blank line-1.
+    if was_empty and vim.fn.getline("$") == "" then
+        vim.cmd("$delete _")
     end
-    -- `:read FILE` inserts after the current line. Use `0read` to insert at top.
-    vim.cmd("read " .. template)
+
+    -- Snap cursor back to the start of the inserted template. If the buffer
+    -- was effectively empty (or actually empty in the line=0 case), that's
+    -- line 1; otherwise it's the line the user was on when they triggered.
+    local target_line = math.max(1, original_line)
+    vim.api.nvim_win_set_cursor(0, {target_line, 0})
 end, { desc = "Insert filetype skeleton" })
 
 -- tmux_term — one shell pane below nvim that follows the current file.
@@ -170,6 +239,19 @@ end, { desc = "tmux term: run visual selection" })
 -- =============================================================================
 
 -- Filetype-specific indent fix for C / C++.
+-- Rust uses 2-space indent (matches rustfmt.toml: tab_spaces = 2), spaces not
+-- tabs — so typed/autoindent agrees with what `cargo fmt` / <leader>cf produce
+-- and you don't get a 4-space jump the formatter then rewrites.
+vim.api.nvim_create_autocmd("FileType", {
+    pattern = "rust",
+    callback = function()
+        vim.opt_local.expandtab   = true
+        vim.opt_local.tabstop     = 2
+        vim.opt_local.shiftwidth  = 2
+        vim.opt_local.softtabstop = 2
+    end,
+})
+
 -- Vim's cindent treats anything ending in `:` as a goto label and outdents it
 -- to column 0. That's wrong for C++ scope-resolution (`std::`) — while typing
 -- `std:` you see the line jump to col 0, then snap back when you type the
@@ -225,20 +307,119 @@ vim.diagnostic.config({
     },
 })
 
--- Auto-format C/C++ files on save via clangd (the LSP-attached formatter).
--- This is the "VS Code-equivalent" of format-on-save. Bypass on any single
--- save with `:noa w` (no autocmds, write) if clangd reformats something you
--- want to keep as-is.
-vim.api.nvim_create_autocmd("BufWritePre", {
-    pattern = { "*.c", "*.cpp", "*.h", "*.hpp" },
-    callback = function() vim.lsp.buf.format({ async = false }) end,
+-- Color the border on floating windows (LSP hover, diagnostic float, code
+-- actions, etc.). FloatBorder is the highlight group every bordered floating
+-- window uses. Re-applies on every ColorScheme event so it survives
+-- colorscheme changes / re-applications.
+vim.api.nvim_create_autocmd("ColorScheme", {
+    callback = function()
+        vim.api.nvim_set_hl(0, "FloatBorder", { fg = "#7aa2f7", bg = "NONE" })
+    end,
 })
+-- Also apply immediately for current colorscheme (autocmd only fires on
+-- FUTURE ColorScheme events).
+vim.api.nvim_set_hl(0, "FloatBorder", { fg = "#7aa2f7", bg = "NONE" })
+
+-- LSP popup borders — apply rounded borders to every LSP-rendered floating
+-- window by wrapping the default handlers with `border = "rounded"`.
+-- Covers: hover (K), signature help (during typing in function calls).
+-- The diagnostic float (<leader>e) already has border configured above via
+-- vim.diagnostic.config. The code-action menu + rename use vim.ui.select /
+-- vim.ui.input which honor their own theming (dressing.nvim would
+-- standardize those, but native nvim doesn't apply border there).
+vim.lsp.handlers["textDocument/hover"] = vim.lsp.with(
+    vim.lsp.handlers.hover, { border = "rounded" }
+)
+vim.lsp.handlers["textDocument/signatureHelp"] = vim.lsp.with(
+    vim.lsp.handlers.signature_help, { border = "rounded" }
+)
+
+-- :Sessions — list saved persistence.nvim sessions with their decoded
+-- directory paths. Sessions are stored at ~/.local/state/nvim/sessions/
+-- with `/` in directory paths url-encoded to `%`. This command decodes
+-- them back for readability.
+vim.api.nvim_create_user_command("Sessions", function()
+    local sessions_dir = vim.fn.stdpath("state") .. "/sessions"
+    local files = vim.fn.glob(sessions_dir .. "/*.vim", false, true)
+    if #files == 0 then
+        print("No saved sessions in " .. sessions_dir)
+        return
+    end
+    print("Sessions in " .. sessions_dir .. ":")
+    for _, file in ipairs(files) do
+        local name = vim.fn.fnamemodify(file, ":t:r")   -- basename without extension
+        local decoded = name:gsub("%%", "/")             -- decode % back to /
+        print("  " .. decoded)
+    end
+end, { desc = "List saved sessions" })
+
+-- Auto-format C/C++ files on save — DISABLED (2026-05-31).
+-- Was triggering reformats that conflicted with hand-tuned comment layouts
+-- and project-specific spacing choices. Manual format remains available via
+-- the `<leader>fm` keybind below for when you actually want to reformat.
+-- To re-enable, uncomment the block.
+--
+-- vim.api.nvim_create_autocmd("BufWritePre", {
+--     pattern = { "*.c", "*.cpp", "*.h", "*.hpp" },
+--     callback = function() vim.lsp.buf.format({ async = false }) end,
+-- })
 
 -- Manual format keybind for any file with an attached LSP (Python via pyright,
 -- Lua via lua_ls, etc.). For C/C++ this is mostly redundant given save-format
 -- above, but handy when you want to reformat without saving.
 map("n", "<leader>fm", function() vim.lsp.buf.format({ async = false }) end,
     { desc = "Format buffer via LSP" })
+
+-- Format current file via external formatter, picked by file extension.
+-- Mirrors the leader-s skeleton-insert pattern: extension lookup, fall back
+-- to filetype, notify on miss. More predictable than <leader>fm for languages
+-- where the LSP either doesn't format (e.g. pyright) or formats with a tool
+-- other than the project-configured one.
+map("n", "<leader>cf", function()
+    local ext  = vim.fn.expand("%:e")
+    local ft   = vim.bo.filetype
+    local file = vim.fn.expand("%:p")
+
+    -- Extension -> argv. Add new languages here as needed.
+    local formatters = {
+        cpp  = { "clang-format", "-i", file },
+        hpp  = { "clang-format", "-i", file },
+        cc   = { "clang-format", "-i", file },
+        h    = { "clang-format", "-i", file },
+        c    = { "clang-format", "-i", file },
+        py   = { "ruff", "format", file },
+        lua  = { "stylua", file },
+        sh   = { "shfmt", "-w", file },
+        -- Bare rustfmt parses as edition 2015 and does NOT read Cargo.toml
+        -- (only `cargo fmt` does, but that's project-wide) — pin the edition.
+        rs   = { "rustfmt", "--edition", "2024", file },
+    }
+
+    -- Filetype fallback for files without standard extensions
+    -- (e.g. CMakeLists.txt, .zshrc).
+    local by_filetype = {
+        cmake = { "cmake-format", "-i", file },
+    }
+
+    local cmd = formatters[ext] or by_filetype[ft]
+    if not cmd then
+        vim.notify("No formatter for ." .. ext .. " (filetype " .. ft .. ")",
+                   vim.log.levels.WARN)
+        return
+    end
+
+    -- Save first; formatters work on disk content, not buffer state.
+    vim.cmd("silent! write")
+
+    local out = vim.fn.system(cmd)
+    if vim.v.shell_error ~= 0 then
+        vim.notify("Format failed: " .. out, vim.log.levels.ERROR)
+        return
+    end
+
+    -- Reload to pick up the formatter's writes.
+    vim.cmd("edit!")
+end, { desc = "Format current file (by extension)" })
 
 
 
