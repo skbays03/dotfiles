@@ -65,3 +65,7 @@ mouse-hide-while-typing = true
 # os.conf -> os-macos.conf  on macOS    (adds macos-option-as-alt)
 # os.conf -> os-linux.conf  on Linux    (currently empty placeholder)
 config-file = os.conf
+
+# Cap per-surface scrollback so a runaway process can never balloon
+# Ghostty memory again. 10 MB is plenty of history, but bounded.
+scrollback-limit = 10000000
