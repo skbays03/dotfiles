@@ -7,3 +7,7 @@
 [credential "https://gist.github.com"]
 	helper =
 	helper = !gh auth git-credential
+[safe]
+	directory = /Users/shawn/actions-runner/_work/one_dash/one_dash
+	directory = /Users/shawn/actions-runner/_work/Ngomia/Ngomia
+	directory = /Users/shawn/gha-autoscaler/.runners/*
