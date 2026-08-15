@@ -8,3 +8,4 @@
 # Make ~/bin available so personal scripts (cpprun, crun, ...) work from any shell.
 # (Scripts live in ~/dotfiles/bin/ and are symlinked into ~/bin/ by install.sh.)
 export PATH="$HOME/bin:$PATH"
+. "$HOME/.cargo/env"

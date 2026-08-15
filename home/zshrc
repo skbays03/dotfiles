@@ -22,6 +22,11 @@ alias cls="clear"
 alias p="python3"
 alias z="source ~/.zshrc"
 
+# Run the one_dash test suite. Wraps scripts/test.py, which handles
+# incremental rebuild + runs both SKUs by default. Pass-through flags:
+# --sku cloud (or air_gapped), --filter "*Pattern*", --build, --list-tests.
+alias odt='$HOME/Desktop/projects/one_dash/scripts/test.py --matrix'
+
 # Sync dotfiles + learning repos from GitHub (calls ~/dotfiles/launchers/sync_repos.sh).
 # Auto-runs from the learning_tmux launcher too; this alias lets you trigger it manually.
 # NOTE: shadows the rarely-used Unix sync(8) command (which flushes filesystem buffers).
@@ -39,22 +44,125 @@ alias sync='$HOME/dotfiles/launchers/sync_repos.sh'
 # non-interactive shells too — vim's :!cpprun %, scripts, ssh, etc.
 # PATH addition for ~/bin lives in ~/.zshenv (also synced via dotfiles).
 
-# ── Git workflow helpers (for the two-machine dotfiles + learning flow) ──────
-# c "message" — commit all changes + push in one keystroke.
-#   Compresses 'git add -A && git commit -m "..." && git push'.
-#   Run from anywhere inside a git repo. Errors out if no message provided.
-c() {
-    if [ -z "$1" ]; then
-        echo "usage: c \"commit message\""
-        return 1
-    fi
-    git add -A && git commit -m "$*" && git push
+# ── Git workflow ──────────────────────────────────────────────────────
+# All git shortcuts use the `g` prefix. Staging is ALWAYS explicit — no
+# alias here invokes `git add -A`. Push is decoupled from commit (use
+# `gp` deliberately). Run `aliases` (defined below) to list everything
+# with its doc comment.
+
+# gst — short git status with branch + upstream tracking. Daily driver.
+alias gst='git status -sb'
+# gd — unstaged diff (working tree vs index).
+alias gd='git diff'
+# gdc — staged diff (index vs HEAD). Use before `gci` to confirm what's about to commit.
+alias gdc='git diff --cached'
+# gl — last 20 commits, one line each.
+alias gl='git log --oneline -20'
+# gll — last 20 commits across ALL branches as a graph; use for branch topology.
+alias gll='git log --oneline --graph --all -20'
+# gsh — show the most recent commit (message + diff).
+alias gsh='git show'
+
+# ga — `git add` with explicit paths. Aliased solely to match the `g` prefix.
+alias ga='git add'
+
+# gci — commit already-staged changes with a required message. Refuses empty.
+#   Pairs with `ga`: stage incrementally, then `gci "msg"` when ready.
+gci() {
+    [ -z "$1" ] && { echo "usage: gci \"commit message\""; return 1; }
+    git commit -m "$*"
 }
 
-# wip — emergency snapshot when leaving a machine mid-task.
-#   Stages all changes, commits with a timestamp message, pushes.
-#   WIP commits are intentionally messy — clean them up later by running
-#   `git rebase -i HEAD~N` and squashing them into proper commits.
-wip() {
-    git add -A && git commit -m "wip: $(date '+%Y-%m-%d %H:%M')" && git push
+# gcm — one-shot: stage explicit paths AND commit with a message.
+#   Refuses if no paths given (no `-A` fallback, ever).
+#   Usage: gcm "msg" path/to/file1 path/to/file2 ...
+gcm() {
+    local msg="$1"; shift
+    [ -z "$msg" ] && { echo "usage: gcm \"msg\" <paths...>"; return 1; }
+    [ $# -eq 0 ] && { echo "gcm: must pass at least one path (no -A)"; return 1; }
+    git add "$@" && git commit -m "$msg"
 }
+
+# gp — push current branch to its upstream.
+alias gp='git push'
+# gpl — pull with fast-forward only; refuses to create a merge commit.
+alias gpl='git pull --ff-only'
+
+# gco — checkout an existing branch or path. Usage: gco main / gco src/foo.cpp
+alias gco='git checkout'
+# gcb — create AND switch to a new branch. Usage: gcb feature/new-thing
+alias gcb='git checkout -b'
+# gb — list local branches with upstream tracking info + last commit summary.
+alias gb='git branch -vv'
+
+# gus — unstage paths (move from index back to working tree; contents preserved).
+#   Usage: gus path/to/file
+#   Destructive undos (git restore <path>, git reset --hard, git clean -fd)
+#   are DELIBERATELY not aliased — type them out so they stay intentional.
+alias gus='git restore --staged'
+
+# ── GitHub CLI workflow ───────────────────────────────────────────────
+# All `gh`-routed shortcuts use the `gpr` prefix for PR ops and `gh*`
+# for repo/issue ops. Run `gh auth status` if any of these fail with an
+# auth error.
+
+# gpr — create a new PR from the current branch (opens editor for description).
+alias gpr='gh pr create'
+# gprv — open the current branch's PR in a browser tab.
+alias gprv='gh pr view --web'
+# gprc — show CI check status for the current branch's PR.
+alias gprc='gh pr checks'
+# gprl — list open PRs in this repo.
+alias gprl='gh pr list'
+# gprd — show the current branch's PR diff in the terminal.
+alias gprd='gh pr diff'
+# gpro — check out a PR locally by number. Usage: gpro 1234
+alias gpro='gh pr checkout'
+
+# ── Self-documenting alias index ──────────────────────────────────────
+# aliases — list every alias/function defined in this zshrc with its
+#   preceding `#` doc comment. Auto-maintained: anything you add with a
+#   `#` comment immediately above the definition (no blank line between)
+#   shows up here. Run `aliases` whenever you forget a name.
+#   Colors: section headers = bold yellow, doc comments = dim gray,
+#   alias names = bold cyan, function names = bold magenta.
+aliases() {
+    awk '
+        BEGIN {
+            HDR  = "\033[1;33m"
+            DIM  = "\033[2;37m"
+            ALI  = "\033[1;36m"
+            FUN  = "\033[1;35m"
+            RST  = "\033[0m"
+        }
+        /^# ──/ {
+            printf "%s%s%s\n", HDR, $0, RST
+            buf = ""
+            next
+        }
+        /^#/ {
+            buf = buf DIM $0 RST "\n"
+            next
+        }
+        /^alias [a-zA-Z_][a-zA-Z0-9_]*=/ {
+            match($0, /^alias [a-zA-Z_][a-zA-Z0-9_]*/)
+            name = substr($0, 1, RLENGTH)
+            rest = substr($0, RLENGTH + 1)
+            printf "%s%s%s%s%s\n\n", buf, ALI, name, RST, rest
+            buf = ""
+            next
+        }
+        /^[a-zA-Z_][a-zA-Z0-9_]*\(\)/ {
+            match($0, /^[a-zA-Z_][a-zA-Z0-9_]*/)
+            name = substr($0, 1, RLENGTH)
+            rest = substr($0, RLENGTH + 1)
+            printf "%s%s%s%s%s\n\n", buf, FUN, name, RST, rest
+            buf = ""
+            next
+        }
+        /^$/ { buf = "" }
+    ' ~/dotfiles/home/zshrc | less -R
+}
+
+# Added by sift/scripts/build.sh on 2026-06-06
+export PATH="/Users/shawn/Desktop/projects/sift:$PATH"
