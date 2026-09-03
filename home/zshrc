@@ -20,7 +20,9 @@ if command -v eza >/dev/null; then
 fi
 alias cls="clear"
 alias p="python3"
-alias z="source ~/.zshrc"
+# Full config reload: env vars live in .zshenv, so a reload
+# that skips it misses new exports (found via EDITOR, 2026-09).
+alias z="source ~/.zshenv; source ~/.zshrc"
 
 # Run the one_dash test suite. Wraps scripts/test.py, which handles
 # incremental rebuild + runs both SKUs by default. Pass-through flags:
@@ -43,6 +45,10 @@ alias sync='$HOME/dotfiles/launchers/sync_repos.sh'
 # install.sh. Standalone scripts (not zsh functions) so they work in
 # non-interactive shells too — vim's :!cpprun %, scripts, ssh, etc.
 # PATH addition for ~/bin lives in ~/.zshenv (also synced via dotfiles).
+#
+# nvimclean (same dir) fires nvim's :Rotate from the shell: saves all
+# buffers and the session, then respawns the nvim(s) in this tmux
+# window in place. `nvimclean -a` does it for every nvim under tmux.
 
 # ── Git workflow ──────────────────────────────────────────────────────
 # All git shortcuts use the `g` prefix. Staging is ALWAYS explicit — no
