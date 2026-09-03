@@ -9,3 +9,7 @@
 # (Scripts live in ~/dotfiles/bin/ and are symlinked into ~/bin/ by install.sh.)
 export PATH="$HOME/bin:$PATH"
 . "$HOME/.cargo/env"
+
+# The editor for anything that asks ($EDITOR consumers: git,
+# kum export --open, crontab, ...).
+export EDITOR=nvim
